@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "30527513892",
+    "project_id": "lucas-app-68e53",
+    "storage_bucket": "lucas-app-68e53.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:30527513892:android:a92a8bd70821d60141ffb1",
+        "android_client_info": {
+          "package_name": "com.marcelandfriends.lucas_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAS0G0lBy1Apu1gyjMVQNZgFvw4WbHc1yk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+message HeaterControl {
+  message Start {
+    float temperature = 1;
+  }
+
+  message Stop {}
+
+  oneof control {
+    Start start = 1;
+    Stop stop = 2;
+  }
+}

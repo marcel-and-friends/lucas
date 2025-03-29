@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Lucas Coffe Machine</string>
+    <string name="title_activity_main">Lucas Coffe Machine</string>
+    <string name="package_name">com.marcelandfriends.lucas_app</string>
+    <string name="custom_url_scheme">com.marcelandfriends.lucas_app</string>
+</resources>

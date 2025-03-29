@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+import "proto/app/HeaterControl.proto";
+
+message AppCommand {
+  oneof command {
+    HeaterControl heater_control = 1;
+  }
+}

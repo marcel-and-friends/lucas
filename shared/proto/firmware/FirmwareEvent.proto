@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+import "proto/firmware/TemperatureReport.proto";
+
+message FirmwareEvent {
+  oneof event {
+    TemperatureReport temperature_report = 1;
+  }
+}
