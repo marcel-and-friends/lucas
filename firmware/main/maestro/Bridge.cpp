@@ -3,7 +3,6 @@
 #include <nimble/ble.h>
 #include <nimble/nimble_port.h>
 #include <nimble/nimble_port_freertos.h>
-#include <nvs_flash.h>
 #include <services/gap/ble_svc_gap.h>
 #include <services/gatt/ble_svc_gatt.h>
 
@@ -11,6 +10,7 @@
 #include <pb_encode.h>
 
 #include "Bridge.hpp"
+#include <util/literals.hpp>
 #include <util/log.hpp>
 
 // Where does this come from? Every ESP-IDF bluetooth example has it but I can't find it...
@@ -18,12 +18,7 @@ extern "C" void ble_store_config_init();
 
 namespace maestro {
 
-static int spp_gatt_event_handler(uint16_t, uint16_t, struct ble_gatt_access_ctxt*, void*);
-static int gap_event_handler(struct ble_gap_event*, void*);
-static void begin_advertising();
-static void sync_cb();
-static void reset_cb(int reason);
-static void host_task(void*);
+static Bridge* s_bridge = nullptr;
 
 struct CharacteristicData {
     ble_uuid128_t uuid;
@@ -40,7 +35,7 @@ static constexpr ble_uuid16_t SERVICE_UUID = BLE_UUID16_INIT(0xABF0);
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #pragma GCC diagnostic push
 
-static constexpr ble_gatt_svc_def ble_gatt[] = {
+ble_gatt_svc_def Bridge::ble_gatt[] = {
     {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid = &SERVICE_UUID.u,
@@ -48,7 +43,7 @@ static constexpr ble_gatt_svc_def ble_gatt[] = {
 
             {
                 .uuid = &g_spp_characteristic.uuid.u,
-                .access_cb = spp_gatt_event_handler,
+                .access_cb = Bridge::spp_gatt_event_handler,
                 .flags = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_NOTIFY,
                 .val_handle = &g_spp_characteristic.value_handle,
             },
@@ -65,12 +60,12 @@ static constexpr ble_gatt_svc_def ble_gatt[] = {
 
 #pragma GCC diagnostic pop
 
-Bridge::Bridge(size_t device_id) {
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        ESP_ERROR_CHECK(nvs_flash_init());
-    }
+Bridge::Bridge(command::Queue& command_queue, size_t device_id)
+    : m_maestro_command_queue(command_queue) {
+    // There should only be a single instance of Bridge
+    assert(s_bridge == nullptr);
+
+    s_bridge = this;
 
     auto name = std::format("PROTO-{}", device_id);
     ESP_ERROR_CHECK(ble_svc_gap_device_name_set(name.c_str()));
@@ -92,86 +87,78 @@ Bridge::Bridge(size_t device_id) {
     nimble_port_freertos_init(host_task);
 }
 
-void Bridge::send_event(FirmwareEvent event) {
-    uint8_t buffer[FirmwareEvent_size] {};
+Bridge& Bridge::the() {
+    return *s_bridge;
+}
+
+void Bridge::send_event(const FirmwareEvent& event) {
+    uint8_t buffer[FirmwareEvent_size];
 
     auto stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
     if (!pb_encode(&stream, FirmwareEvent_fields, &event)) {
-        LOGI("BLE", "Encoding failed: {}", PB_GET_ERROR(&stream));
+        LOGI("Bridge", "Encoding failed (error={})", PB_GET_ERROR(&stream));
         return;
     }
 
-    size_t buffer_length = stream.bytes_written;
-
-    auto* mbuf = ble_hs_mbuf_from_flat(&buffer, buffer_length);
-    if (int rc = ble_gatts_notify_custom(0, g_spp_characteristic.value_handle, mbuf)) {
-        LOGI("BLE", "Notification failed: {}", rc);
-    }
+    auto* mbuf = ble_hs_mbuf_from_flat(&buffer, stream.bytes_written);
+    if (int rc = ble_gatts_notify_custom(0, g_spp_characteristic.value_handle, mbuf))
+        LOGI("Bridge", "Notification failed (rc={})", rc);
 }
 
-static int spp_gatt_event_handler(uint16_t, uint16_t, struct ble_gatt_access_ctxt* ctx, void*) {
+int Bridge::spp_gatt_event_handler(uint16_t, uint16_t, ble_gatt_access_ctxt* ctx, void*) {
     switch (ctx->op) {
     case BLE_GATT_ACCESS_OP_WRITE_CHR: {
-        LOGI("BLE", "Writing to SPP");
-        // uint8_t buffer[256] {};
-        // uint16_t len = 0;
-        //
-        // ble_hs_mbuf_to_flat(ctx->om, buffer, sizeof(buffer), &len);
+        uint8_t buffer[AppCommand_size];
+        uint16_t len;
 
-        // pb_istream_t stream = pb_istream_from_buffer(buffer, len);
+        if (ble_hs_mbuf_to_flat(ctx->om, buffer, sizeof(buffer), &len)) {
+            LOGE("Bridge", "Buffer is not big enough for payload (len={})", os_mbuf_len(ctx->om));
+            break;
+        }
 
-        // SimpleMessage msg {};
-        // auto status = pb_decode(&stream, &SimpleMessage_msg, &msg);
-        // if (!status) {
-        //     LOGE("BLE", "Failed to decode protobuf message (%s)", PB_GET_ERROR(&stream));
-        //     break;
-        // }
-        //
-        // LOGI("BLE", "Data received! len = %zu", len);
-        // switch (msg.which_Test) {
-        // case SimpleMessage_lucky_number_tag:
-        //     LOGW("BLE", "Lucky number! :) -> %ld", msg.Test.lucky_number);
-        //     break;
-        // case SimpleMessage_my_number_tag:
-        //     LOGW("BLE", "My number! :) -> %ld", msg.Test.my_number);
-        //     break;
-        // default:
-        //     LOGW("BLE", "None? :(");
-        //     break;
-        // }
+        pb_istream_t stream = pb_istream_from_buffer(buffer, len);
+
+        AppCommand message;
+        if (not pb_decode(&stream, &AppCommand_msg, &message)) {
+            LOGE("Bridge", "Decoding failed (error={})", PB_GET_ERROR(&stream));
+            break;
+        }
+
+        if (not the().m_maestro_command_queue.send(message, 0ms))
+            LOGE("Bridge", "Event queue send failed (tag={})", message.which_tag);
     } break;
     default:
-        LOGE("BLE", "Invalid operation for SPP characteristic");
+        LOGE("Bridge", "Invalid operation for SPP characteristic");
         break;
     }
 
     return 0;
 }
 
-static int gap_event_handler(struct ble_gap_event* event, void*) {
+int Bridge::gap_event_handler(ble_gap_event* event, void*) {
     switch (event->type) {
     case BLE_GAP_EVENT_CONNECT:
-        LOGI("BLE", "Connection {} (status={})", event->connect.status == 0 ? "established" : "failed", event->connect.status);
+        LOGI("Bridge", "Connection {} (status={})", event->connect.status == 0 ? "established" : "failed", event->connect.status);
         // Resume advertising when the client is not able to connect.
         if (event->connect.status != 0)
             begin_advertising();
         break;
     case BLE_GAP_EVENT_DISCONNECT:
-        LOGI("BLE", "Disconnected (reason={})", event->disconnect.reason);
+        LOGI("Bridge", "Disconnected (reason={})", event->disconnect.reason);
         begin_advertising();
         break;
     case BLE_GAP_EVENT_CONN_UPDATE:
-        LOGI("BLE", "Connection updated (status=%d)", event->conn_update.status);
+        LOGI("Bridge", "Connection updated (status={})", event->conn_update.status);
         break;
     case BLE_GAP_EVENT_ADV_COMPLETE:
-        LOGW("BLE", "Advertisement complete? This shouldn't ever happen (reason={})", event->adv_complete.reason);
+        LOGW("Bridge", "Advertisement complete? This shouldn't ever happen (reason={})", event->adv_complete.reason);
         begin_advertising();
         break;
     case BLE_GAP_EVENT_MTU:
-        LOGW("BLE", "MTU updated (cid={}, mtu={})", event->mtu.channel_id, event->mtu.value);
+        LOGW("Bridge", "MTU updated (cid={}, mtu={})", event->mtu.channel_id, event->mtu.value);
         break;
     case BLE_GAP_EVENT_SUBSCRIBE:
-        LOGI("BLE", "Subscribe event (attr_handle={}, notifying={})", event->subscribe.attr_handle, static_cast<uint8_t>(event->subscribe.cur_notify));
+        LOGI("Bridge", "Subscribe event (attr_handle={}, notifying={})", event->subscribe.attr_handle, static_cast<uint8_t>(event->subscribe.cur_notify));
         break;
     default:
         break;
@@ -180,7 +167,7 @@ static int gap_event_handler(struct ble_gap_event* event, void*) {
     return 0;
 }
 
-static void begin_advertising() {
+void Bridge::begin_advertising() {
     auto uuids = std::array {
         SERVICE_UUID,
     };
@@ -219,22 +206,22 @@ static void begin_advertising() {
 
     ESP_ERROR_CHECK(ble_gap_adv_start(own_addr_type, NULL, BLE_HS_FOREVER, &adv_params, gap_event_handler, NULL));
 
-    LOGI("BLE", "Started advertising");
+    LOGI("Bridge", "Started advertising");
 }
 
-static void sync_cb() {
-    LOGI("BLE", "Syncing...");
+void Bridge::sync_cb() {
+    LOGI("Bridge", "Syncing...");
 
     ESP_ERROR_CHECK(ble_hs_util_ensure_addr(false));
 
     begin_advertising();
 }
 
-static void reset_cb(int reason) {
-    LOGE("BLE", "Resetting server (reason={})", reason);
+void Bridge::reset_cb(int reason) {
+    LOGE("Bridge", "Resetting server (reason={})", reason);
 }
 
-static void host_task(void*) {
+void Bridge::host_task(void*) {
     nimble_port_run();
     nimble_port_freertos_deinit();
 }

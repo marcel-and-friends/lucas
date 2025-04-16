@@ -1,9 +1,11 @@
 syntax = "proto3";
 
+import "proto/firmware/Alarm.proto";
 import "proto/firmware/TemperatureReport.proto";
 
 message FirmwareEvent {
-  oneof event {
+  oneof tag {
     TemperatureReport temperature_report = 1;
+    Alarm alarm = 2;
   }
 }

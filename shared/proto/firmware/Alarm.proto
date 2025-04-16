@@ -1,0 +1,5 @@
+syntax = "proto3";
+
+message Alarm {
+  int32 error_code = 1;
+}

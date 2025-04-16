@@ -1,25 +1,21 @@
 #pragma once
 
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <vector>
 
 #include <nvs.h>
 #include <nvs_flash.h>
 
 namespace etk::nvs {
 
-namespace {
-template<typename>
-constexpr std::false_type always_false {};
-}
-
 class Store {
 public:
     Store(const char* namespace_name) {
-        auto err = nvs_open(namespace_name, NVS_READWRITE, &m_handle);
-        assert(err == ESP_OK);
+        ESP_ERROR_CHECK(nvs_open(namespace_name, NVS_READWRITE, &m_handle));
     }
 
     ~Store() {
@@ -27,78 +23,130 @@ public:
     }
 
     template<typename T>
+    requires std::is_trivially_copyable_v<T>
     void set(const char* key, const T& value) {
-        if constexpr (std::is_same_v<std::string_view, T>) {
-            auto error = nvs_set_blob(m_handle, key, value.data(), value.size());
-            assert(error == ESP_OK);
-        } else if constexpr (std::is_trivially_copyable_v<T>) {
-            auto error = nvs_set_blob(m_handle, key, &value, sizeof(value));
-            assert(error == ESP_OK);
-        } else {
-            static_assert(always_false<T>, "Unsupported storage type");
-        }
-
-        auto error = nvs_commit(m_handle);
-        assert(error == ESP_OK);
+        ESP_ERROR_CHECK(nvs_set_blob(m_handle, key, &value, sizeof(value)));
+        ESP_ERROR_CHECK(nvs_commit(m_handle));
     }
 
     template<typename T>
-    T get_or_create(const char* key, const T& default_value) {
-        if constexpr (std::is_trivially_copyable_v<T>) {
-            alignas(T) std::byte storage[sizeof(T)];
-            auto length = sizeof(storage);
+    requires std::is_trivially_copyable_v<T>
+    void set(const char* key, std::span<const T> value) {
+        ESP_ERROR_CHECK(nvs_set_blob(m_handle, key, value.data(), value.size()));
+        ESP_ERROR_CHECK(nvs_commit(m_handle));
+    }
 
-            switch (nvs_get_blob(m_handle, key, &storage, &length)) {
-            case ESP_OK:
-                break;
-            case ESP_ERR_NVS_NOT_FOUND:
-                set(key, default_value);
-                return default_value;
-            default:
-                std::exit(1);
-            }
-
-            return *std::launder(reinterpret_cast<T*>(&storage));
-        } else {
-            static_assert(always_false<T>, "Unsupported storage type");
-        }
+    void set(const char* key, std::string_view value) {
+        ESP_ERROR_CHECK(nvs_set_blob(m_handle, key, value.data(), value.size()));
+        ESP_ERROR_CHECK(nvs_commit(m_handle));
     }
 
     template<typename T>
+    requires std::is_trivially_copyable_v<T>
+    T get_or_create(const char* key, T default_value) {
+        alignas(T) std::byte storage[sizeof(T)];
+        auto length = sizeof(storage);
+
+        auto error = nvs_get_blob(m_handle, key, &storage, &length);
+        if (error == ESP_ERR_NVS_NOT_FOUND) {
+            set(key, default_value);
+            return default_value;
+        }
+
+        ESP_ERROR_CHECK(error);
+
+        return *std::launder(reinterpret_cast<T*>(&storage));
+    }
+
+    template<typename T>
+    requires std::is_trivially_copyable_v<T>
+    std::vector<T> get_or_create(const char* key, std::span<T const> default_value) {
+        size_t required_size;
+
+        auto error = nvs_get_blob(m_handle, key, nullptr, &required_size);
+        if (error == ESP_ERR_NVS_NOT_FOUND) {
+            set(key, default_value);
+            return default_value;
+        }
+
+        ESP_ERROR_CHECK(error);
+
+        assert(required_size % sizeof(T) == 0);
+
+        std::vector<T> value(required_size / sizeof(T), T {});
+        ESP_ERROR_CHECK(nvs_get_blob(m_handle, key, value.data(), &required_size));
+
+        return value;
+    }
+
+    std::string get_or_create(const char* key, std::string_view default_value) {
+        size_t required_size;
+
+        auto error = nvs_get_blob(m_handle, key, nullptr, &required_size);
+        if (error == ESP_ERR_NVS_NOT_FOUND) {
+            set(key, default_value);
+            return std::string(default_value);
+        }
+
+        ESP_ERROR_CHECK(error);
+
+        std::string value(required_size, '\0');
+        ESP_ERROR_CHECK(nvs_get_blob(m_handle, key, value.data(), &required_size));
+
+        return value;
+    }
+
+    template<typename T>
+    requires std::is_trivially_copyable_v<T>
     std::optional<T> get(const char* key) {
-        if constexpr (std::is_same_v<std::string, T>) {
-            size_t required_size;
-            auto error = nvs_get_blob(m_handle, key, nullptr, &required_size);
-            if (error != ESP_OK)
-                return std::nullopt;
+        alignas(T) std::byte storage[sizeof(T)];
+        auto length = sizeof(storage);
 
-            std::string value(required_size, '\0');
-            error = nvs_get_blob(m_handle, key, value.data(), &required_size);
-            if (error != ESP_OK)
-                return std::nullopt;
+        auto error = nvs_get_blob(m_handle, key, &storage, &length);
+        if (error == ESP_ERR_NVS_NOT_FOUND)
+            return std::nullopt;
 
-            return value;
-        } else if constexpr (std::is_trivially_copyable_v<T>) {
-            alignas(T) std::byte storage[sizeof(T)];
-            auto length = sizeof(storage);
+        ESP_ERROR_CHECK(error);
 
-            auto error = nvs_get_blob(m_handle, key, &storage, &length);
-            if (error != ESP_OK)
-                return std::nullopt;
-
-            return *std::launder(reinterpret_cast<T*>(&storage));
-        } else {
-            static_assert(always_false<T>, "Unsupported storage type");
-        }
+        return *std::launder(reinterpret_cast<T*>(&storage));
     }
 
-    bool erase(const char* key) {
-        if (nvs_erase_key(m_handle, key) != ESP_OK)
-            return false;
+    template<typename T>
+    requires std::is_trivially_copyable_v<T>
+    std::vector<T> get(const char* key) {
+        size_t required_size;
 
-        auto error = nvs_commit(m_handle);
-        assert(error == ESP_OK);
-        return true;
+        auto error = nvs_get_blob(m_handle, key, nullptr, &required_size);
+        if (error == ESP_ERR_NVS_NOT_FOUND)
+            return std::nullopt;
+
+        ESP_ERROR_CHECK(error);
+
+        assert(required_size % sizeof(T) == 0);
+
+        std::vector<T> value(required_size / sizeof(T), T {});
+        ESP_ERROR_CHECK(nvs_get_blob(m_handle, key, value.data(), &required_size));
+
+        return value;
+    }
+
+    std::optional<std::string> get(const char* key) {
+        size_t required_size;
+        auto error = nvs_get_blob(m_handle, key, nullptr, &required_size);
+        if (error == ESP_ERR_NVS_NOT_FOUND)
+            return std::nullopt;
+
+        ESP_ERROR_CHECK(error);
+
+        std::string value(required_size, '\0');
+        ESP_ERROR_CHECK(nvs_get_blob(m_handle, key, value.data(), &required_size));
+
+        return value;
+    }
+
+    void erase(const char* key) {
+        ESP_ERROR_CHECK(nvs_erase_key(m_handle, key));
+        ESP_ERROR_CHECK(nvs_commit(m_handle));
     }
 
 private:

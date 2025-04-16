@@ -74,13 +74,8 @@ export default function App() {
     }
 
     return () => {
-      if (bluetoothState.kind == State.Connected) {
-        if (bluetoothState.lucasConnection.device) {
-          void BleClient.disconnect(
-            bluetoothState.lucasConnection.device.deviceId,
-          );
-        }
-      }
+      if (bluetoothState.kind == State.Connected)
+        void bluetoothState.lucasConnection.disconnect();
     };
   }, [bluetoothState]);
 
@@ -126,14 +121,14 @@ export default function App() {
               <Tab tab="heater">
                 <Heater />
               </Tab>
-              <Tab tab="tab2"></Tab>
+              <Tab tab="empty"></Tab>
 
               <IonTabBar slot="bottom">
                 <IonTabButton tab="heater">
-                  <IonLabel>Tab 1</IonLabel>
+                  <IonLabel>Aquecedor</IonLabel>
                 </IonTabButton>
-                <IonTabButton tab="tab2">
-                  <IonLabel>Tab 2</IonLabel>
+                <IonTabButton tab="empty">
+                  <IonLabel>Vazio</IonLabel>
                 </IonTabButton>
               </IonTabBar>
 

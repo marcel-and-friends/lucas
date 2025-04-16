@@ -2,12 +2,12 @@ syntax = "proto3";
 
 message HeaterControl {
   message Start {
-    float temperature = 1;
+    float target_celsius = 1;
   }
 
   message Stop {}
 
-  oneof control {
+  oneof tag {
     Start start = 1;
     Stop stop = 2;
   }

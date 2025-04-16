@@ -1,9 +1,11 @@
 #pragma once
 
 #include <cstdint>
+
 #include <driver/gpio.h>
 
 namespace etk::io {
+
 enum class Invert {
     No,
     Yes
@@ -16,10 +18,9 @@ public:
         , m_mode(mode) { }
 
     void setup() const {
-        gpio_config_t cfg {
-            .pin_bit_mask = (1ULL << m_pin),
-            .mode = m_mode,
-        };
+        gpio_config_t cfg {};
+        cfg.pin_bit_mask = (1ULL << m_pin);
+        cfg.mode = m_mode;
         gpio_config(&cfg);
     }
 
@@ -122,4 +123,5 @@ public:
         return 0;
     }
 };
+
 }

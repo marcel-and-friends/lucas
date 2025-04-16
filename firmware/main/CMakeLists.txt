@@ -1,7 +1,7 @@
 idf_component_register(
     SRCS
         main.cpp
-        heater/Heater.cpp
+        heater/Task.cpp
         maestro/Maestro.cpp
         maestro/Bridge.cpp
     INCLUDE_DIRS
@@ -19,6 +19,9 @@ idf_component_register(
         # Third-party libraries
         nanopb
 )
+
+# Generate oneof fields as anonymous unions
+set(NANOPB_OPTIONS "-s anonymous_oneof:true")
 
 find_package(Nanopb REQUIRED)
 

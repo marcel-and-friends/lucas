@@ -3,7 +3,7 @@ syntax = "proto3";
 import "proto/app/HeaterControl.proto";
 
 message AppCommand {
-  oneof command {
+  oneof tag {
     HeaterControl heater_control = 1;
   }
 }

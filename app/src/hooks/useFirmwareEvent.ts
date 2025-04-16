@@ -1,12 +1,12 @@
-import { CaseMap } from "@/lib/LucasConnection";
 import { FirmwareEvent } from "#/proto/firmware/FirmwareEvent";
-import ConnectionContext from "@/stores/ConnectionContext";
-import { useContext, useEffect } from "react";
+import useConnection from "@/hooks/useConnection";
+import { useEffect } from "react";
 
-export default function useFirmwareEvent<
-  C extends keyof CaseMap<FirmwareEvent>,
->(caseStr: C, callback: (data: CaseMap<FirmwareEvent>[C]) => void) {
-  const connection = useContext(ConnectionContext);
+export default function useFirmwareEvent<C extends keyof FirmwareEvent>(
+  caseStr: C,
+  callback: (data: NonNullable<FirmwareEvent[C]>) => void,
+) {
+  const connection = useConnection();
   useEffect(() => {
     const id = connection.subscribe(caseStr, callback);
     return () => {

@@ -37,7 +37,6 @@ function generateProto(
     `--plugin=protoc-gen-ts_proto=${path.resolve(process.cwd(), "node_modules/.bin/protoc-gen-ts_proto")}`,
     `--proto_path=${protoDir}`,
     `--ts_proto_out=${outDir}`,
-    `--ts_proto_opt=oneof=unions`,
     `--ts_proto_opt=removeEnumPrefix=true`,
     `--ts_proto_opt=snakeToCamel=false`,
     ...relativeFiles,

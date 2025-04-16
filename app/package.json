@@ -26,7 +26,8 @@
     "@ionic/react": "^8.5.0",
     "ionicons": "^7.4.0",
     "react": "19.0.0",
-    "react-dom": "19.0.0"
+    "react-dom": "19.0.0",
+    "recharts": "^2.15.2"
   },
   "devDependencies": {
     "@capacitor/cli": "7.1.0",
