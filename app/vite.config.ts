@@ -5,6 +5,7 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import { defineConfig } from "vite";
 import viteProtoGenPlugin from "./plugins/vite-proto-gen";
+import tailwindcss from "@tailwindcss/vite";
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -16,6 +17,7 @@ export default defineConfig({
   plugins: [
     react(),
     legacy(),
+    tailwindcss(),
     viteProtoGenPlugin({
       protoDir: path.resolve("../shared"),
       outDir: path.resolve("generated"),

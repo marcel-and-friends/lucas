@@ -2,7 +2,11 @@ syntax = "proto3";
 
 message HeaterControl {
   message Start {
-    float target_celsius = 1;
+    int32 target_celsius = 1;
+    int32 duration = 2;
+    float p = 3;
+    float i = 4;
+    float d = 5;
   }
 
   message Stop {}

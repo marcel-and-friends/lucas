@@ -54,14 +54,14 @@ void Maestro::begin() {
     s_instance->create("MAESTRO", 10);
 }
 
-Maestro& Maestro::the() {
-    return *s_instance;
-}
-
 void send_event(const FirmwareEvent& event) {
     Maestro::the().m_bridge.await_access([&](Bridge& bridge) {
         bridge.send_event(event);
     });
+}
+
+Maestro& Maestro::the() {
+    return *s_instance;
 }
 
 }

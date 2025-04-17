@@ -1,6 +1,5 @@
 import { IonTab } from "@ionic/react";
 import { ReactNode } from "react";
-import style from "./Tab.module.css";
 
 interface TabProps {
   tab: string;
@@ -10,7 +9,7 @@ interface TabProps {
 export default function Tab({ tab, children }: TabProps) {
   return (
     <IonTab tab={tab}>
-      <div id={`${tab}-page`} className={style["tab-container"]}>
+      <div id={`${tab}-page`} className="h-full w-full">
         {children}
       </div>
     </IonTab>

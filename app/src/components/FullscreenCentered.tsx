@@ -1,17 +1,24 @@
 import { IonContent } from "@ionic/react";
 import { ReactNode } from "react";
-import style from "./FullscreenCentered.module.css";
 
 interface FullscreenCenteredProps {
   children?: ReactNode;
+  className?: string;
 }
 
 export default function FullscreenCentered({
   children,
+  className,
 }: FullscreenCenteredProps) {
   return (
     <IonContent fullscreen>
-      <div className={style["fullscreen-centered"]}>{children}</div>
+      <div
+        className={
+          "flex h-full w-full flex-col items-center justify-center " + className
+        }
+      >
+        {children}
+      </div>
     </IonContent>
   );
 }

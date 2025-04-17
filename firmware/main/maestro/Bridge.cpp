@@ -96,13 +96,13 @@ void Bridge::send_event(const FirmwareEvent& event) {
 
     auto stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
     if (!pb_encode(&stream, FirmwareEvent_fields, &event)) {
-        LOGI("Bridge", "Encoding failed (error={})", PB_GET_ERROR(&stream));
+        LOGE("Bridge", "Encoding failed (error={})", PB_GET_ERROR(&stream));
         return;
     }
 
     auto* mbuf = ble_hs_mbuf_from_flat(&buffer, stream.bytes_written);
     if (int rc = ble_gatts_notify_custom(0, g_spp_characteristic.value_handle, mbuf))
-        LOGI("Bridge", "Notification failed (rc={})", rc);
+        LOGE("Bridge", "Notification failed (rc={})", rc);
 }
 
 int Bridge::spp_gatt_event_handler(uint16_t, uint16_t, ble_gatt_access_ctxt* ctx, void*) {
@@ -116,7 +116,7 @@ int Bridge::spp_gatt_event_handler(uint16_t, uint16_t, ble_gatt_access_ctxt* ctx
             break;
         }
 
-        pb_istream_t stream = pb_istream_from_buffer(buffer, len);
+        auto stream = pb_istream_from_buffer(buffer, len);
 
         AppCommand message;
         if (not pb_decode(&stream, &AppCommand_msg, &message)) {
@@ -144,7 +144,7 @@ int Bridge::gap_event_handler(ble_gap_event* event, void*) {
             begin_advertising();
         break;
     case BLE_GAP_EVENT_DISCONNECT:
-        LOGI("Bridge", "Disconnected (reason={})", event->disconnect.reason);
+        LOGW("Bridge", "Disconnected (reason={})", event->disconnect.reason);
         begin_advertising();
         break;
     case BLE_GAP_EVENT_CONN_UPDATE:
@@ -210,7 +210,7 @@ void Bridge::begin_advertising() {
 }
 
 void Bridge::sync_cb() {
-    LOGI("Bridge", "Syncing...");
+    LOGI("Bridge", "Syncing");
 
     ESP_ERROR_CHECK(ble_hs_util_ensure_addr(false));
 

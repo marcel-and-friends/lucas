@@ -35,7 +35,7 @@
             esp32-toolchain
 
             # app
-            nodejs_23
+            nodejs_22
             vtsls
             prettierd
             vscode-langservers-extracted

@@ -11,7 +11,10 @@ struct Idling {
 };
 
 struct Heating {
-    float target_celsius { 0.0f };
+    int target_celsius;
+    xf::time::Tick start;
+    xf::time::Tick finish;
+
     float counter { 0.0f };
 };
 

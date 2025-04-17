@@ -22,12 +22,17 @@
     "@capacitor/haptics": "7.0.0",
     "@capacitor/keyboard": "7.0.0",
     "@capacitor/status-bar": "7.0.0",
+    "@hookform/resolvers": "^5.0.1",
     "@ionic/cli": "^7.2.1",
     "@ionic/react": "^8.5.0",
+    "@tailwindcss/vite": "^4.1.4",
     "ionicons": "^7.4.0",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "recharts": "^2.15.2"
+    "react-hook-form": "^7.55.0",
+    "recharts": "^2.15.2",
+    "tailwindcss": "^4.1.4",
+    "zod": "^3.24.3"
   },
   "devDependencies": {
     "@capacitor/cli": "7.1.0",
@@ -48,6 +53,8 @@
     "glob": "^11.0.1",
     "globals": "^15.15.0",
     "jsdom": "^22.1.0",
+    "prettier": "^3.5.3",
+    "prettier-plugin-tailwindcss": "^0.6.11",
     "terser": "^5.4.0",
     "ts-proto": "^2.7.0",
     "typescript": "^5.1.6",
