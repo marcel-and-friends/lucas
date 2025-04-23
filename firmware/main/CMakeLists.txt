@@ -20,12 +20,15 @@ idf_component_register(
         nanopb
 )
 
+file(GLOB_RECURSE PROTO_FILES ../../shared/proto/*.proto)
+
 # Generate oneof fields as anonymous unions
 set(NANOPB_OPTIONS "-s anonymous_oneof:true")
+# Since the files are interconnected through `import` statements, we want changes to one protobuf file to (potentially) invalidate every generated file.
+# See https://github.com/nanopb/nanopb/issues/1083#issuecomment-2824873956 for more context.
+set(NANOPB_DEPENDS ${PROTO_FILES})
 
 find_package(Nanopb REQUIRED)
-
-file(GLOB_RECURSE PROTO_FILES ../../shared/proto/*.proto)
 
 nanopb_generate_cpp(
     TARGET proto
