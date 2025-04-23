@@ -72,11 +72,6 @@ export default function App() {
       case State.Connected:
         break;
     }
-
-    return () => {
-      if (bluetoothState.kind == State.Connected)
-        void bluetoothState.lucasConnection.disconnect();
-    };
   }, [bluetoothState]);
 
   switch (bluetoothState.kind) {

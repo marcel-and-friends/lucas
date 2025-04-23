@@ -1,13 +1,7 @@
 syntax = "proto3";
 
 message HeatingReport {
-  message Report {
-    float celsius = 1;
-    uint32 timestamp = 2;
-  }
-
-  oneof tag {
-    Report progress = 1;
-    Report finished = 2;
-  }
+  float celsius = 1;
+  float seconds_elapsed = 2;
+  bool finished = 3;
 }

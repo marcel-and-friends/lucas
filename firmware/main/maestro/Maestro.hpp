@@ -19,13 +19,13 @@ class Maestro : public xf::task::StaticTask<Maestro, 3192> {
     void run_impl();
 
 public:
-    explicit Maestro();
-
     static void begin();
 
     friend void send_event(const FirmwareEvent&);
 
 private:
+    Maestro();
+
     static Maestro& the();
 
     etk::nvs::Store m_nvs_store;
@@ -33,11 +33,12 @@ private:
 
     command::Queue m_command_queue;
 
-    xf::MutexProtected<Bridge> m_bridge;
+    Bridge m_bridge;
 
     heater::command::Queue m_heater_command_queue;
     heater::Task m_heater;
 };
 
 void send_event(const FirmwareEvent&);
+
 }

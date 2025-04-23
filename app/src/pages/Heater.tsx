@@ -21,12 +21,8 @@ import { z } from "zod";
 export default function Heater() {
   const connection = useConnection();
 
-  const [heatingData, setHeatingData] = useState<HeatingData | undefined>(
-    undefined,
-  );
-  const isHeating = heatingData !== undefined;
-
   const [graphData, setGraphData] = useState<GraphPoint[]>([]);
+  const [isHeating, setIsHeating] = useState(false);
 
   const {
     register,
@@ -40,59 +36,37 @@ export default function Heater() {
   });
 
   useFirmwareEvent("heating_report", (event) => {
-    if (!heatingData) return;
-
-    let temperature = 0;
-    let seconds_since_start = 0;
-
-    if (event.progress) {
-      if (heatingData.start_timestamp === undefined)
-        heatingData.start_timestamp = event.progress.timestamp;
-
-      console.log(event.progress.timestamp);
-      temperature = event.progress.celsius;
-      seconds_since_start =
-        (event.progress.timestamp - heatingData.start_timestamp) / 1000;
-    } else if (event.finished) {
-      temperature = event.finished.celsius;
-      seconds_since_start =
-        (event.finished.timestamp - heatingData.start_timestamp!) / 1000;
-
-      setHeatingData(undefined);
-    }
-
+    if (event.finished) setIsHeating(false);
     setGraphData((temperatures) => [
       ...temperatures,
       {
-        temperature,
-        seconds_since_start,
+        celsius: event.celsius,
+        seconds_elapsed: event.seconds_elapsed,
       },
     ]);
   });
 
   const onSubmit = async (params: HeatingParameters) => {
-    if (isHeating) {
-      setHeatingData(undefined);
-      await connection.sendCommand({
-        heater_control: {
-          stop: {},
-        },
-      });
-    } else {
-      setHeatingData({
-        start_timestamp: undefined,
-      });
+    if (!isHeating) {
       setGraphData([]);
+      setIsHeating(true);
 
       await connection.sendCommand({
         heater_control: {
           start: {
             target_celsius: params.target_celsius,
-            duration: Math.round(params.duration * 1000),
+            duration_ms: Math.round(params.duration * 1000),
             p: params.p,
             i: params.i,
             d: params.d,
           },
+        },
+      });
+    } else {
+      setIsHeating(false);
+      await connection.sendCommand({
+        heater_control: {
+          stop: {},
         },
       });
     }
@@ -102,20 +76,17 @@ export default function Heater() {
     <IonContent fullscreen>
       <div className="flex h-full w-full flex-col items-center justify-center gap-10 px-20 py-25 lg:flex-row">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={graphData} margin={{ bottom: 20 }}>
+          <LineChart data={graphData} margin={{ bottom: 20, right: 20 }}>
             <CartesianGrid vertical={false} strokeDasharray="3" />
             <ReferenceLine y={getValues("target_celsius")} stroke="white" />
-            <XAxis
-              tickFormatter={(tick) => tick.toFixed(1)}
-              dataKey="seconds_since_start"
-            >
+            <XAxis interval={1} dataKey="seconds_elapsed">
               <Label value="Tempo" position="bottom" />
             </XAxis>
             <YAxis domain={[0, 110]} />
             <Tooltip animationDuration={100} />
             <Legend verticalAlign="top" />
             <Line
-              dataKey="temperature"
+              dataKey="celsius"
               type="monotone"
               stroke="#8884d8"
               strokeWidth="3px"
@@ -195,12 +166,8 @@ export default function Heater() {
 }
 
 interface GraphPoint {
-  temperature: number;
-  seconds_since_start: number;
-}
-
-interface HeatingData {
-  start_timestamp: number | undefined;
+  celsius: number;
+  seconds_elapsed: number;
 }
 
 const coerceNumberNonEmpty = z

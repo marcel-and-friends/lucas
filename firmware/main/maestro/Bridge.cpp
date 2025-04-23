@@ -87,16 +87,12 @@ Bridge::Bridge(command::Queue& command_queue, size_t device_id)
     nimble_port_freertos_init(host_task);
 }
 
-Bridge& Bridge::the() {
-    return *s_bridge;
-}
-
 void Bridge::send_event(const FirmwareEvent& event) {
     uint8_t buffer[FirmwareEvent_size];
 
     auto stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
-    if (!pb_encode(&stream, FirmwareEvent_fields, &event)) {
-        LOGE("Bridge", "Encoding failed (error={})", PB_GET_ERROR(&stream));
+    if (not pb_encode(&stream, FirmwareEvent_fields, &event)) {
+        LOGE("Bridge", "Encoding failed (error=\"{}\")", PB_GET_ERROR(&stream));
         return;
     }
 
@@ -224,6 +220,10 @@ void Bridge::reset_cb(int reason) {
 void Bridge::host_task(void*) {
     nimble_port_run();
     nimble_port_freertos_deinit();
+}
+
+Bridge& Bridge::the() {
+    return *s_bridge;
 }
 
 }

@@ -6,6 +6,10 @@
       url = "github:iniw/nixpkgs-esp-dev";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    android-nixpkgs = {
+      url = "github:tadfisher/android-nixpkgs/stable";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -14,6 +18,7 @@
       nixpkgs,
       flake-utils,
       esp-dev,
+      android-nixpkgs,
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
@@ -27,6 +32,17 @@
             "xtensa-esp-elf"
           ];
         };
+
+        android-sdk = android-nixpkgs.sdk.${system} (
+          sdkPkgs: with sdkPkgs; [
+            build-tools-36-0-0 # Used for the newer version of zipalign that supports the "-P 16" flag
+            build-tools-34-0-0
+            cmdline-tools-latest
+            platform-tools
+            platforms-android-35
+            platforms-android-34
+          ]
+        );
       in
       {
         devShells.default = pkgs.mkShell {
@@ -39,14 +55,12 @@
             vtsls
             prettierd
             vscode-langservers-extracted
+            android-sdk
 
             # shared
             protobuf
             buf
           ];
-          shellHook = ''
-            export ANDROID_HOME=~/Library/Android/sdk
-          '';
         };
       }
     );

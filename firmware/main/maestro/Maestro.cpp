@@ -19,8 +19,6 @@ Maestro::Maestro()
 }
 
 void Maestro::setup_impl() {
-    m_bridge.create();
-
     m_command_queue.create();
     m_heater_command_queue.create();
 
@@ -55,9 +53,7 @@ void Maestro::begin() {
 }
 
 void send_event(const FirmwareEvent& event) {
-    Maestro::the().m_bridge.await_access([&](Bridge& bridge) {
-        bridge.send_event(event);
-    });
+    Maestro::the().m_bridge.send_event(event);
 }
 
 Maestro& Maestro::the() {
