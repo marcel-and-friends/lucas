@@ -6,17 +6,17 @@
 #define LOGI(tag, fmt, ...)                                           \
     do {                                                              \
         auto string = std::format(fmt, ##__VA_ARGS__);                \
-        ESP_LOGI("LUCAS/" tag, "%*s", string.size(), string.c_str()); \
+        ESP_LOGI("Lucas/" tag, "%*s", string.size(), string.c_str()); \
     } while (false)
 
 #define LOGW(tag, fmt, ...)                                           \
     do {                                                              \
         auto string = std::format(fmt, ##__VA_ARGS__);                \
-        ESP_LOGW("LUCAS/" tag, "%*s", string.size(), string.c_str()); \
+        ESP_LOGW("Lucas/" tag, "%*s", string.size(), string.c_str()); \
     } while (false)
 
 #define LOGE(tag, fmt, ...)                                           \
     do {                                                              \
         auto string = std::format(fmt, ##__VA_ARGS__);                \
-        ESP_LOGE("LUCAS/" tag, "%*s", string.size(), string.c_str()); \
+        ESP_LOGE("Lucas/" tag, "%*s", string.size(), string.c_str()); \
     } while (false)

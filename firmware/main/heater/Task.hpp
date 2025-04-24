@@ -1,10 +1,13 @@
 #pragma once
 
+#include <numeric>
+
 #include <etk/io/Pin.hpp>
 #include <xf/task/task.hpp>
 
 #include "command.hpp"
 #include "pid.hpp"
+#include "relays.hpp"
 
 namespace heater {
 
@@ -14,22 +17,31 @@ struct Idling {
 };
 
 struct PreHeating {
-    float initial_temperature;
-    xf::time::Duration heating_duration;
-
-    int target_celsius;
+    int target_temperature;
     xf::time::Tick start;
     xf::time::Tick deadline;
 
+    relays::Controller relays_controller {};
     xf::time::Tick last_report {};
 };
 
 struct Heating {
-    int target_celsius;
+    struct PreHeatingStage {
+        relays::PhaseGroup phase_group;
+    };
+
+    struct HeatingStage {
+        pid::Controller pid;
+    };
+
+    std::variant<PreHeatingStage, HeatingStage> stage;
+    int target_temperature;
+    xf::time::Duration duration;
     xf::time::Tick start;
     xf::time::Tick deadline;
 
-    float counter { 0.0f };
+    relays::Controller relays_controller {};
+    xf::time::Tick last_report {};
 };
 
 }
@@ -45,9 +57,11 @@ public:
 private:
     void handle_command(const HeaterControl&);
 
+    float read_temperature() const;
+
     command::Queue& m_command_queue;
 
-    std::variant<state::Idling, state::PreHeating, state::Heating> m_state;
+    std::variant<state::Idling, state::Heating> m_state;
 
     pid::Constants m_pid_constants;
 };

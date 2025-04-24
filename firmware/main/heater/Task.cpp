@@ -1,5 +1,3 @@
-#include <numeric>
-
 #include <wxs/match.hpp>
 
 #include "Task.hpp"
@@ -9,81 +7,13 @@
 
 namespace heater {
 
-using FloatSeconds = std::chrono::duration<float>;
-
-struct PhaseInfo {
-    enum State {
-        Off = 1 << 0,
-        WeakElement = 1 << 1,
-        StrongElement = 1 << 2
-    };
-    int watts;
-    int relay_states;
+static auto RELAYS = std::array {
+    // Onboard LED connection on the devkit
+    etk::io::Output { GPIO_NUM_2 },
 };
 
-constexpr auto MAX_WATTAGE = 3400;
-
-constexpr auto PHASE_STATES = std::to_array<PhaseInfo>({
-    PhaseInfo { 0, PhaseInfo::Off },
-    PhaseInfo { int(MAX_WATTAGE * 0.3f), PhaseInfo::WeakElement },
-    PhaseInfo { int(MAX_WATTAGE * 0.7f), PhaseInfo::StrongElement },
-    PhaseInfo { MAX_WATTAGE, PhaseInfo::WeakElement | PhaseInfo::StrongElement },
-});
-
-constexpr auto PHASE_GROUP_SIZE = 5;
-using PhaseGroup = std::array<PhaseInfo, PHASE_GROUP_SIZE>;
-
-struct TableEntry {
-    int average_watts;
-    PhaseGroup phase_group;
-};
-
-constexpr auto PHASE_GROUP_TABLE_SIZE = PHASE_GROUP_SIZE * (PHASE_STATES.size() - 1) + 1;
-using PhaseGroupTable = std::array<TableEntry, PHASE_GROUP_TABLE_SIZE>;
-
-static consteval PhaseGroupTable generate_phase_group_table() {
-    PhaseGroupTable table {};
-
-    for (size_t r = 1; r < table.size(); ++r) {
-        const size_t row = r - 1;
-
-        for (size_t c = 0; c <= row % PHASE_GROUP_SIZE; ++c)
-            table[r].phase_group[c] = PHASE_STATES[(row + PHASE_GROUP_SIZE) / PHASE_GROUP_SIZE];
-
-        for (size_t c = (row % PHASE_GROUP_SIZE) + 1; c < PHASE_GROUP_SIZE; ++c)
-            table[r].phase_group[c] = PHASE_STATES[row / PHASE_GROUP_SIZE];
-
-        auto group_wattage = std::accumulate(table[r].phase_group.begin(), table[r].phase_group.end(), 0, [](auto acc, auto info) {
-            return acc + info.watts;
-        });
-
-        table[r].average_watts = group_wattage / PHASE_GROUP_SIZE;
-    }
-
-    return table;
-}
-
-static constexpr auto AC_PHASE_CYCLE = FloatSeconds { 1 } / 60;
-static constexpr auto PID_DELTA_TIME = AC_PHASE_CYCLE * PHASE_GROUP_SIZE;
-static constexpr auto PHASE_GROUP_TABLE = generate_phase_group_table();
-
-static const TableEntry* find_closest_table_entry(float watts) {
-    if (watts >= PHASE_GROUP_TABLE.back().average_watts)
-        return &PHASE_GROUP_TABLE.back();
-
-    if (watts <= PHASE_GROUP_TABLE.front().average_watts)
-        return &PHASE_GROUP_TABLE.front();
-
-    const auto found = std::lower_bound(PHASE_GROUP_TABLE.begin(), PHASE_GROUP_TABLE.end(), watts, [](const auto& row, auto v) {
-        return row.average_watts < v;
-    });
-
-    auto previous = found - 1;
-
-    auto previous_delta = std::abs(previous->average_watts - watts);
-    auto found_delta = std::abs(found->average_watts - watts);
-
-    return previous_delta < found_delta ? previous : found;
+static constexpr int percent_to_watts(float percent) {
+    return std::lround(std::clamp(percent, 0.0f, 100.0f) * relays::TOTAL_WATTAGE / 100.0f);
 }
 
 Task::Task(command::Queue& command_queue)
@@ -92,7 +22,7 @@ Task::Task(command::Queue& command_queue)
           .Kp = 1.0f,
           .Ki = 0.1f,
           .Kd = 0.1f,
-          .Dt = PID_DELTA_TIME.count(),
+          .Dt = relays::PID_DELTA_TIME.count(),
       }) {
 }
 
@@ -106,89 +36,96 @@ void Task::run_impl() {
                 auto command = m_command_queue.await_receive();
                 handle_command(command);
             },
-            [&](state::PreHeating& state) {
+            [&](state::Heating& state) {
                 auto start = xf::time::now();
-                bool finished = start >= state.deadline;
+                bool finished_stage = start >= state.deadline;
+                bool finished_heating = finished_stage and std::holds_alternative<state::Heating::HeatingStage>(state.stage);
 
-                if (start - state.last_report >= REPORT_INTERVAL) {
+                if ((start - state.last_report >= REPORT_INTERVAL) or finished_heating) {
                     state.last_report = start;
 
                     float seconds_elapsed = std::chrono::duration_cast<FloatSeconds>(start - state.start).count();
                     maestro::send_event({
                         .which_tag = FirmwareEvent_heating_report_tag,
                         .heating_report = {
-                            .celsius = 1.0f,
+                            .temperature = read_temperature(),
                             .seconds_elapsed = seconds_elapsed,
-                            .finished = false,
+                            .finished = finished_heating,
                         },
                     });
                 }
 
-                if (finished) {
-                    m_state = state::Heating {
-                        .target_celsius = state.target_celsius,
-                        .start = start,
-                        .deadline = start + state.heating_duration,
-                    };
-                    return;
+                if (finished_stage) {
+                    bool back_to_main_loop = wxs::match(
+                        state.stage,
+                        [&](state::Heating::PreHeatingStage& stage) {
+                            LOGI("Heater", "Preheat ended");
+
+                            state.stage = state::Heating::HeatingStage {
+                                .pid = pid::Controller(m_pid_constants),
+                            };
+                            state.deadline = start + state.duration;
+                            // Reset the relay controller so that we immediately fall into the `needs_new_phase_group` branch and start using the PID controller
+                            state.relays_controller.reset();
+                            return false;
+                        },
+                        [&](state::Heating::HeatingStage& stage) {
+                            m_state = state::Idling {};
+                            return true;
+                        });
+
+                    if (back_to_main_loop)
+                        return;
                 }
+
+                if (state.relays_controller.needs_new_phase_group()) {
+                    const auto& phase_group = wxs::match(
+                        state.stage,
+                        [](state::Heating::PreHeatingStage& stage) {
+                            return stage.phase_group;
+                        },
+                        [&](state::Heating::HeatingStage& stage) {
+                            float output = stage.pid.calculate_output(state.target_temperature - read_temperature());
+                            int watts = percent_to_watts(output);
+                            return relays::find_best_phase_group_for_watts(watts);
+                        });
+
+                    state.relays_controller.set_phase_group(phase_group);
+                }
+
+                auto relays_state = state.relays_controller.next_phase_group_state();
+                RELAYS[0].set(relays_state.active_relays & relays::Weak);
 
                 auto end = xf::time::now();
-                auto duration = end - start;
-                auto time_until_deadline = end >= state.deadline ? xf::time::Duration {} : state.deadline - end;
-                auto next_phase_cycle = std::chrono::duration_cast<xf::time::Duration>(AC_PHASE_CYCLE - duration);
 
-                if (auto command = m_command_queue.receive(std::min(next_phase_cycle, time_until_deadline))) {
+                auto time_until_deadline = util::saturating_sub(state.deadline, end);
+                auto time_until_next_phase_cycle = util::saturating_sub(relays::AC_PHASE_CYCLE, end - start);
+                auto time_until_next_report = util::saturating_sub(REPORT_INTERVAL, end - state.last_report);
+
+                if (auto command = m_command_queue.receive(std::min({ time_until_deadline, time_until_next_phase_cycle, time_until_next_report })))
                     handle_command(*command);
-                    return;
-                }
-            },
-            [&](state::Heating& state) {
-                auto report_start = xf::time::now();
-                float seconds_elapsed = std::chrono::duration_cast<FloatSeconds>(report_start - state.start).count();
-                bool finished = report_start >= state.deadline;
-
-                maestro::send_event({
-                    .which_tag = FirmwareEvent_heating_report_tag,
-                    .heating_report = {
-                        .celsius = state.counter,
-                        .seconds_elapsed = seconds_elapsed,
-                        .finished = finished,
-                    },
-                });
-
-                if (finished) {
-                    m_state = state::Idling {};
-                    return;
-                }
-
-                if (state.counter < state.target_celsius)
-                    state.counter += 5.0f;
-
-                auto report_end = xf::time::now();
-                auto report_duration = report_end - report_start;
-                auto time_until_finish = report_end >= state.deadline ? xf::time::Duration {} : state.deadline - report_end;
-
-                if (auto command = m_command_queue.receive(std::min(REPORT_INTERVAL - report_duration, time_until_finish))) {
-                    handle_command(*command);
-                    return;
-                }
             });
     }
 }
 
 void Task::handle_command(const HeaterControl& command) {
-    static constexpr xf::time::Duration REPORT_INTERVAL = 250ms;
     static constexpr xf::time::Duration PREHEAT_DURATION = 1s;
+    static constexpr float PREHEAT_MULTIPLIER = 2.0f;
 
     switch (command.which_tag) {
     case HeaterControl_start_tag: {
         auto start = xf::time::now();
 
-        m_state = state::PreHeating {
-            .initial_temperature = 0.0f,
-            .heating_duration = xf::time::Duration { command.start.duration_ms },
-            .target_celsius = command.start.target_celsius,
+        float delta = command.start.target_temperature - read_temperature();
+        float scaled_delta = delta * PREHEAT_MULTIPLIER;
+        int watts = percent_to_watts(scaled_delta);
+
+        m_state = state::Heating {
+            .stage = state::Heating::PreHeatingStage {
+                .phase_group = relays::find_best_phase_group_for_watts(watts),
+            },
+            .target_temperature = command.start.target_temperature,
+            .duration = xf::time::Duration { command.start.duration_ms },
             .start = start,
             .deadline = start + PREHEAT_DURATION,
         };
@@ -198,5 +135,9 @@ void Task::handle_command(const HeaterControl& command) {
         LOGI("Heater", "Stopped heating");
         break;
     };
+}
+
+float Task::read_temperature() const {
+    return 25.0f;
 }
 }

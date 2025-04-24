@@ -17,7 +17,7 @@ public:
         : m_pin(pin)
         , m_mode(mode) { }
 
-    void setup() const {
+    void setup() {
         gpio_config_t cfg {};
         cfg.pin_bit_mask = (1ULL << m_pin);
         cfg.mode = m_mode;
@@ -43,15 +43,15 @@ public:
         : Pin(pin, GPIO_MODE_OUTPUT)
         , m_invert(invert == Invert::Yes) { }
 
-    void set(bool state) const {
+    void set(bool state) {
         gpio_set_level(pin(), state ^ m_invert);
     }
 
-    void enable() const {
+    void enable() {
         set(true);
     }
 
-    void disable() const {
+    void disable() {
         set(false);
     }
 
@@ -67,20 +67,20 @@ public:
 
     static constexpr auto PWM_MAX = 255;
 
-    void write(uint8_t value) const {
+    void write(uint8_t value) {
         // analogWrite(pin(), m_invert ? PWM_MAX - value : value);
     }
 
-    void write_normalized(float value) const {
+    void write_normalized(float value) {
         // configASSERT(value >= 0.0f && value <= 1.0f);
         write(static_cast<uint8_t>(value * PWM_MAX));
     }
 
-    void enable() const {
+    void enable() {
         write(PWM_MAX);
     }
 
-    void disable() const {
+    void disable() {
         write(0);
     }
 
@@ -96,16 +96,16 @@ public:
         : Pin(pin, GPIO_MODE_INPUT)
         , m_invert(invert == Invert::Yes) { }
 
-    [[nodiscard]] bool read() const {
+    [[nodiscard]] bool read() {
         // return digitalRead(pin()) ^ m_invert;
         return false;
     }
 
-    void attach_isr(ISR isr, int mode) const {
+    void attach_isr(ISR isr, int mode) {
         // attachInterrupt(digitalPinToInterrupt(pin()), isr, mode);
     }
 
-    void detach_isr() const {
+    void detach_isr() {
         // detachInterrupt(digitalPinToInterrupt(pin()));
     }
 
@@ -118,7 +118,7 @@ public:
     constexpr AnalogInput(gpio_num_t pin)
         : Pin(pin, GPIO_MODE_INPUT) { }
 
-    [[nodiscard]] uint16_t read() const {
+    [[nodiscard]] uint16_t read() {
         // return analogRead(pin());
         return 0;
     }

@@ -22,7 +22,7 @@ void Maestro::setup_impl() {
     m_command_queue.create();
     m_heater_command_queue.create();
 
-    m_heater.create(1);
+    m_heater.create(1, 1);
 }
 
 void Maestro::run_impl() {
