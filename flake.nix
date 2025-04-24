@@ -53,6 +53,7 @@
 
             # app
             android-sdk
+            jdk
             nodejs_22
             prettierd
             vtsls
@@ -62,7 +63,12 @@
             buf
             protobuf
           ];
+
+          shellHook = ''
+            export JAVA_HOME=${pkgs.jdk.home}
+          '';
         };
+
       }
     );
 }
