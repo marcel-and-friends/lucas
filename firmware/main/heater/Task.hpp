@@ -42,6 +42,7 @@ struct Heating {
 
     relays::Controller relays_controller {};
     xf::time::Tick last_report {};
+    xf::time::Tick last_phase_group_state_change {};
 };
 
 }

@@ -93,13 +93,17 @@ void Task::run_impl() {
                     state.relays_controller.set_phase_group(phase_group);
                 }
 
-                auto relays_state = state.relays_controller.next_phase_group_state();
-                RELAYS[0].set(relays_state.active_relays & relays::Weak);
+                if (start - state.last_phase_group_state_change >= relays::AC_PHASE_CYCLE) {
+                    state.last_phase_group_state_change = start;
+
+                    auto relays_state = state.relays_controller.next_phase_group_state();
+                    RELAYS[0].set(relays_state.active_relays & relays::Weak);
+                }
 
                 auto end = xf::time::now();
 
                 auto time_until_deadline = util::saturating_sub(state.deadline, end);
-                auto time_until_next_phase_cycle = util::saturating_sub(relays::AC_PHASE_CYCLE, end - start);
+                auto time_until_next_phase_cycle = util::saturating_sub(relays::AC_PHASE_CYCLE, end - state.last_phase_group_state_change);
                 auto time_until_next_report = util::saturating_sub(REPORT_INTERVAL, end - state.last_report);
 
                 if (auto command = m_command_queue.receive(std::min({ time_until_deadline, time_until_next_phase_cycle, time_until_next_report })))
