@@ -48,6 +48,7 @@ export default function Heater() {
       });
     } else {
       setIsHeating(false);
+      setTargetTemperature(undefined);
       await connection.sendCommand({
         heater_control: {
           stop: {},
@@ -57,13 +58,17 @@ export default function Heater() {
   };
 
   return (
-    <IonContent fullscreen>
-      <div className="flex h-full w-full flex-col items-center justify-center gap-10 px-20 py-25 lg:flex-row">
-        <TemperatureChart
-          graphData={graphData}
-          targetTemperature={targetTemperature}
-        />
-        <HeaterControlForm isHeating={isHeating} onSubmit={onSubmit} />
+    <IonContent>
+      <div className="flex h-full w-full flex-col items-center justify-center gap-10 p-3 md:flex-row">
+        <div className="flex-5">
+          <TemperatureChart
+            graphData={graphData}
+            targetTemperature={targetTemperature}
+          />
+        </div>
+        <div className="flex-1">
+          <HeaterControlForm isHeating={isHeating} onSubmit={onSubmit} />
+        </div>
       </div>
     </IonContent>
   );

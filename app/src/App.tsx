@@ -6,9 +6,7 @@ import ConnectionContext from "@/stores/ConnectionContext";
 import { BleClient } from "@capacitor-community/bluetooth-le";
 import {
   IonApp,
-  IonButton,
   IonLabel,
-  IonSpinner,
   IonTab,
   IonTabBar,
   IonTabButton,
@@ -16,14 +14,17 @@ import {
   isPlatform,
   setupIonicReact,
 } from "@ionic/react";
-import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+import { StrictMode, useEffect, useState } from "react";
 
 // Core CSS Imports for ionic
 import "@ionic/react/css/core.css";
 // System-controlled dark mode
 import "@ionic/react/css/palettes/dark.system.css";
 
-setupIonicReact();
+setupIonicReact({ rippleEffect: false });
 
 export default function App() {
   const [bluetoothState, setBluetoothState] = useState<BluetoothState>({
@@ -86,7 +87,7 @@ export default function App() {
         return (
           <IonApp>
             <FullscreenCentered>
-              <IonButton
+              <Button
                 onClick={() =>
                   setBluetoothState({
                     kind: State.Searching,
@@ -94,7 +95,7 @@ export default function App() {
                 }
               >
                 Conectar
-              </IonButton>
+              </Button>
             </FullscreenCentered>
           </IonApp>
         );
@@ -104,33 +105,37 @@ export default function App() {
       return (
         <IonApp>
           <FullscreenCentered>
-            <IonSpinner />
+            <Loader2 className="animate-spin" />
           </FullscreenCentered>
         </IonApp>
       );
     case State.Connected:
       return (
-        <IonApp>
-          <ConnectionContext.Provider value={bluetoothState.lucasConnection}>
-            <IonTabs>
-              <Tab tab="heater">
-                <Heater />
-              </Tab>
-              <Tab tab="empty"></Tab>
+        <StrictMode>
+          <IonApp>
+            <ConnectionContext.Provider value={bluetoothState.lucasConnection}>
+              <IonTabs>
+                <Tab tab="heater">
+                  <Heater />
+                </Tab>
+                <Tab tab="empty">
+                  <FullscreenCentered />
+                </Tab>
 
-              <IonTabBar slot="bottom">
-                <IonTabButton tab="heater">
-                  <IonLabel>Aquecedor</IonLabel>
-                </IonTabButton>
-                <IonTabButton tab="empty">
-                  <IonLabel>Vazio</IonLabel>
-                </IonTabButton>
-              </IonTabBar>
+                <IonTabBar slot="bottom">
+                  <IonTabButton tab="heater">
+                    <IonLabel>Aquecedor</IonLabel>
+                  </IonTabButton>
+                  <IonTabButton tab="empty">
+                    <IonLabel>Vazio</IonLabel>
+                  </IonTabButton>
+                </IonTabBar>
 
-              <IonTab tab=""></IonTab>
-            </IonTabs>
-          </ConnectionContext.Provider>
-        </IonApp>
+                <IonTab tab=""></IonTab>
+              </IonTabs>
+            </ConnectionContext.Provider>
+          </IonApp>
+        </StrictMode>
       );
   }
 }

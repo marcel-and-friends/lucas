@@ -63,7 +63,7 @@ export class LucasConnection {
   sendCommand(command: AppCommand) {
     const bytes = AppCommand.encode(command).finish();
     return BleClient.write(
-      this.device?.deviceId,
+      this.device.deviceId,
       SERVICE_UUID,
       SPP_UUID,
       new DataView(bytes.buffer),

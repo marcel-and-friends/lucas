@@ -5,6 +5,7 @@
 #include <etk/io/Pin.hpp>
 #include <xf/task/task.hpp>
 
+#include "TemperatureSensor.hpp"
 #include "command.hpp"
 #include "pid.hpp"
 #include "relays.hpp"
@@ -65,6 +66,8 @@ private:
     std::variant<state::Idling, state::Heating> m_state;
 
     pid::Constants m_pid_constants;
+
+    TemperatureSensor m_temperature_sensor;
 };
 
 }

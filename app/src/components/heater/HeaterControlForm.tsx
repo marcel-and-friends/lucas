@@ -1,85 +1,71 @@
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { IonButton, IonInput, IonText } from "@ionic/react";
-import { useForm } from "react-hook-form";
+import { Control, useForm } from "react-hook-form";
 import { z } from "zod";
 
 export default function HeaterControlForm({ isHeating, onSubmit }: Props) {
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isValid },
-  } = useForm({
+  const form = useForm({
     resolver: zodResolver(HeatingParametersSchema),
     disabled: isHeating,
     mode: "onChange",
   });
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="flex max-w-1/5 min-w-50 flex-col gap-2"
-    >
-      <IonInput
-        {...register("targetTemperature")}
-        label="Temperatura target"
-        type="number"
-        fill="outline"
-        labelPlacement="stacked"
+    <Form {...form}>
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="flex flex-col gap-2"
       >
-        <IonText slot="end">°C</IonText>
-      </IonInput>
-      {errors.targetTemperature?.message && (
-        <IonText color="danger">{errors.targetTemperature?.message}</IonText>
-      )}
-      <IonInput
-        {...register("duration")}
-        label="Duração"
-        type="number"
-        fill="outline"
-        labelPlacement="stacked"
-      >
-        <IonText slot="end">segundos</IonText>
-      </IonInput>
-      {errors.duration?.message && (
-        <IonText color="danger">{errors.duration?.message}</IonText>
-      )}
-      <div className="flex gap-2">
-        <IonInput
-          {...register("p")}
-          label="P"
-          type="number"
-          step="0.1"
-          fill="outline"
-          labelPlacement="stacked"
-        ></IonInput>
-        <IonInput
-          {...register("i")}
-          label="I"
-          type="number"
-          step="0.1"
-          labelPlacement="stacked"
-          fill="outline"
-        ></IonInput>
-        <IonInput
-          {...register("d")}
-          label="D"
-          type="number"
-          step="0.1"
-          fill="outline"
-          labelPlacement="stacked"
-        ></IonInput>
-      </div>
-      {(errors.p || errors.i || errors.d) && (
-        <IonText color="danger">PID devem ser preenchidos</IonText>
-      )}
-      <IonButton
-        disabled={!isValid}
-        type="submit"
-        color={isHeating ? "danger" : "primary"}
-      >
-        {isHeating ? "Cancelar" : "Aquecer"}
-      </IonButton>
-    </form>
+        <InputField
+          control={form.control}
+          name="targetTemperature"
+          label="Temperatura Target"
+          placeholder="94"
+        />
+        <InputField
+          control={form.control}
+          name="duration"
+          label="Duração"
+          placeholder="15"
+        />
+        <div className="flex gap-2">
+          <InputField
+            control={form.control}
+            name="p"
+            label="P"
+            placeholder="0.15"
+          />
+          <InputField
+            control={form.control}
+            name="i"
+            label="I"
+            placeholder="0.15"
+          />
+          <InputField
+            control={form.control}
+            name="d"
+            label="D"
+            placeholder="0.15"
+          />
+        </div>
+        <Button
+          disabled={!form.formState.isValid}
+          type="submit"
+          variant={isHeating ? "destructive" : "default"}
+        >
+          {isHeating ? "Cancelar" : "Aquecer"}
+        </Button>
+      </form>
+    </Form>
   );
 }
 
@@ -88,10 +74,42 @@ interface Props {
   onSubmit: (params: HeatingParameters) => Promise<void>;
 }
 
-const coerceNumberNonEmpty = z
-  .string()
-  .refine((str) => str != "")
-  .transform((str) => Number(str));
+function InputField({
+  type,
+  placeholder,
+  name,
+  label,
+  control,
+}: InputFieldProps) {
+  return (
+    <FormField
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>{label}</FormLabel>
+          <FormControl>
+            <Input
+              type={type}
+              placeholder={placeholder}
+              {...field}
+              value={field.value ?? ""}
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
+
+interface InputFieldProps {
+  control: Control<HeatingParameters>;
+  name: keyof HeatingParameters;
+  label: string;
+  placeholder: string;
+  type?: string;
+}
 
 const HeatingParametersSchema = z.object({
   targetTemperature: z.coerce
@@ -101,10 +119,10 @@ const HeatingParametersSchema = z.object({
   duration: z.coerce
     .number()
     .min(1, { message: "Duração deve ser ao menos 1s" })
-    .max(60, { message: "Duração deve ser no máximo 60s" }),
-  p: coerceNumberNonEmpty,
-  i: coerceNumberNonEmpty,
-  d: coerceNumberNonEmpty,
+    .max(180, { message: "Duração deve ser no máximo 180s" }),
+  p: z.coerce.number(),
+  i: z.coerce.number(),
+  d: z.coerce.number(),
 });
 
 export type HeatingParameters = z.infer<typeof HeatingParametersSchema>;

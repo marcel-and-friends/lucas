@@ -1,25 +1,33 @@
 import {
+  ChartConfig,
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import {
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
+
+const chartConfig = {
+  temperature: {
+    label: "Temperatura",
+  },
+} satisfies ChartConfig;
 
 export default function TemperatureChart({
   graphData,
   targetTemperature,
 }: Props) {
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart
-        data={graphData}
-        margin={{ bottom: 20, right: 20, left: 20, top: 20 }}
-      >
+    <ChartContainer config={chartConfig} className="h-full w-full">
+      <LineChart data={graphData}>
         <CartesianGrid vertical={false} strokeDasharray="3" />
         <ReferenceLine y={targetTemperature} stroke="white" />
         <XAxis
@@ -31,20 +39,16 @@ export default function TemperatureChart({
           domain={[0, "dataMax"]}
           label={{
             value: "Tempo",
-            position: "bottom",
+            position: "insideBottom",
           }}
         />
-
-        <YAxis
-          domain={[0, 110]}
-          label={{
-            value: "Temperatura (°C)",
-            angle: -90,
-            position: "insideLeft",
-          }}
+        <YAxis domain={[0, 110]} />
+        <ChartTooltip
+          animationDuration={100}
+          cursor={false}
+          content={<ChartTooltipContent hideLabel />}
         />
-        <Tooltip animationDuration={100} />
-        <Legend verticalAlign="top" />
+        <ChartLegend verticalAlign="top" content={<ChartLegendContent />} />
         <Line
           name="Temperatura"
           dataKey="temperature"
@@ -55,7 +59,7 @@ export default function TemperatureChart({
           activeDot={{ r: 8 }}
         />
       </LineChart>
-    </ResponsiveContainer>
+    </ChartContainer>
   );
 }
 

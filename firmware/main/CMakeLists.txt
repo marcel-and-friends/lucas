@@ -1,14 +1,16 @@
 idf_component_register(
     SRCS
         main.cpp
-        heater/Task.cpp
         maestro/Maestro.cpp
         maestro/Bridge.cpp
+        heater/Task.cpp
+        heater/TemperatureSensor.cpp
     INCLUDE_DIRS
         "."
     PRIV_REQUIRES
         # ESP-IDF components
         bt
+        esp_adc
         esp_driver_gpio
         esp_driver_uart
         nvs_flash

@@ -1,3 +1,6 @@
+#include <cfloat>
+#include <esp_adc/adc_continuous.h>
+
 #include <wxs/match.hpp>
 
 #include "Task.hpp"
@@ -23,7 +26,8 @@ Task::Task(command::Queue& command_queue)
           .Ki = 0.1f,
           .Kd = 0.1f,
           .Dt = relays::PID_DELTA_TIME.count(),
-      }) {
+      })
+    , m_temperature_sensor(ADC_CHANNEL_0) {
 }
 
 void Task::run_impl() {
@@ -37,6 +41,9 @@ void Task::run_impl() {
                 handle_command(command);
             },
             [&](state::Heating& state) {
+                static float min_temp = FLT_MAX;
+                static float max_temp = 0.0f;
+
                 auto start = xf::time::now();
                 bool finished_stage = start >= state.deadline;
                 bool finished_heating = finished_stage and std::holds_alternative<state::Heating::HeatingStage>(state.stage);
@@ -71,6 +78,9 @@ void Task::run_impl() {
                         },
                         [&](state::Heating::HeatingStage& stage) {
                             m_state = state::Idling {};
+                            LOGI("Heater", "Heating finished (min={}, max={})", min_temp, max_temp);
+                            min_temp = FLT_MAX;
+                            max_temp = 0.0f;
                             return true;
                         });
 
@@ -90,7 +100,15 @@ void Task::run_impl() {
                             return relays::find_best_phase_group_for_watts(watts);
                         });
 
+                    float temperature = m_temperature_sensor.read_temperature();
                     state.relays_controller.set_phase_group(phase_group);
+                    if (temperature > max_temp) {
+                        max_temp = temperature;
+                    }
+
+                    if (temperature < min_temp) {
+                        min_temp = temperature;
+                    }
                 }
 
                 if (start - state.last_phase_group_state_change >= relays::AC_PHASE_CYCLE) {
