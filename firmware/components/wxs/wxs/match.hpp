@@ -58,7 +58,7 @@ template<typename T, typename U>
 using copy_ref = std::conditional_t<std::is_lvalue_reference_v<T>, U&, U&&>;
 
 template<typename... Fs, typename... Ts, typename V>
-consteval void match_impl(std::variant<Ts...>, V&&) noexcept(noexcept(
+consteval void match_impl(const std::variant<Ts...>&, V&&) noexcept(noexcept(
     (..., check_overload_set<block_fn<Fs, Fs...>, copy_ref<V, Ts>...>()),
     (..., check_alternatives<copy_ref<V, Ts>, Fs...>())));
 }
