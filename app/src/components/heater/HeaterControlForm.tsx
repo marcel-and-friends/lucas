@@ -17,6 +17,13 @@ export default function HeaterControlForm({ isHeating, onSubmit }: Props) {
     resolver: zodResolver(HeatingParametersSchema),
     disabled: isHeating,
     mode: "onChange",
+    defaultValues: {
+      targetTemperature: 100,
+      duration: 10,
+      p: 1,
+      i: 1,
+      d: 1,
+    },
   });
 
   return (
