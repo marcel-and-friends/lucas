@@ -1,1 +1,12 @@
-idf_component_register(INCLUDE_DIRS ".")
+idf_component_register(
+    SRCS
+        etk/error/error.cpp
+        etk/i2c/Master.cpp
+        etk/nvs/Store.cpp
+    INCLUDE_DIRS
+        "."
+    REQUIRES
+        nvs_flash
+        esp_driver_i2c
+        esp_driver_gpio
+)

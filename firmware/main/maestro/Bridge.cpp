@@ -6,6 +6,7 @@
 #include <services/gap/ble_svc_gap.h>
 #include <services/gatt/ble_svc_gatt.h>
 
+#include <etk/error/error.hpp>
 #include <pb_decode.h>
 #include <pb_encode.h>
 
@@ -18,7 +19,7 @@ extern "C" void ble_store_config_init();
 
 namespace maestro {
 
-static Bridge* s_bridge = nullptr;
+static Bridge* s_instance = nullptr;
 
 struct CharacteristicData {
     ble_uuid128_t uuid;
@@ -35,7 +36,7 @@ static constexpr ble_uuid16_t SERVICE_UUID = BLE_UUID16_INIT(0xABF0);
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #pragma GCC diagnostic push
 
-ble_gatt_svc_def Bridge::ble_gatt[] = {
+ble_gatt_svc_def Bridge::ble_gatt[] {
     {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid = &SERVICE_UUID.u,
@@ -62,15 +63,13 @@ ble_gatt_svc_def Bridge::ble_gatt[] = {
 
 Bridge::Bridge(command::Queue& command_queue, size_t device_id)
     : m_maestro_command_queue(command_queue) {
-    // There should only be a single instance of Bridge
-    assert(s_bridge == nullptr);
-
-    s_bridge = this;
+    assert(s_instance == nullptr);
+    s_instance = this;
 
     auto name = std::format("PROTO-{}", device_id);
-    ESP_ERROR_CHECK(ble_svc_gap_device_name_set(name.c_str()));
+    TRY_RAW_OR_THROW(ble_svc_gap_device_name_set(name.c_str()));
 
-    ESP_ERROR_CHECK(nimble_port_init());
+    TRY_RAW_OR_THROW(nimble_port_init());
 
     ble_hs_cfg.reset_cb = reset_cb;
     ble_hs_cfg.sync_cb = sync_cb;
@@ -81,8 +80,8 @@ Bridge::Bridge(command::Queue& command_queue, size_t device_id)
     ble_svc_gap_init();
     ble_svc_gatt_init();
 
-    ESP_ERROR_CHECK(ble_gatts_count_cfg(ble_gatt));
-    ESP_ERROR_CHECK(ble_gatts_add_svcs(ble_gatt));
+    TRY_RAW_OR_THROW(ble_gatts_count_cfg(ble_gatt));
+    TRY_RAW_OR_THROW(ble_gatts_add_svcs(ble_gatt));
 
     nimble_port_freertos_init(host_task);
 }
@@ -120,7 +119,7 @@ int Bridge::spp_gatt_event_handler(uint16_t, uint16_t, ble_gatt_access_ctxt* ctx
             break;
         }
 
-        if (not the().m_maestro_command_queue.send(message, 0ms))
+        if (not the().m_maestro_command_queue.send(message, xf::time::NO_WAIT))
             LOGE("Bridge", "Event queue send failed (tag={})", message.which_tag);
     } break;
     default:
@@ -223,7 +222,7 @@ void Bridge::host_task(void*) {
 }
 
 Bridge& Bridge::the() {
-    return *s_bridge;
+    return *s_instance;
 }
 
 }

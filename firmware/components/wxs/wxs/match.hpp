@@ -39,7 +39,7 @@ template<typename F, typename T>
 concept param_is = requires { { param_is_impl(&F::operator()) } -> std::same_as<T>; };
 
 template<typename F, typename T>
-concept overloads_type = true and (param_is<F, std::decay_t<T>> or generic_overload<F>) && (std::invocable<F, T>);
+concept overloads_type = true and (param_is<F, std::decay_t<T>> or generic_overload<F>) and (std::invocable<F, T>);
 
 template<typename F, typename... Ts>
 consteval auto check_overload_set() {

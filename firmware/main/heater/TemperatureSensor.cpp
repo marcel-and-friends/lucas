@@ -1,14 +1,15 @@
 #include <cmath>
-#include <numeric>
+#include <expected>
+
+#include <driver/i2c_master.h>
+
+#include <ads1115/ads1115.hpp>
+#include <wxs/match.hpp>
 
 #include "TemperatureSensor.hpp"
 #include <util/log.hpp>
 
 namespace heater {
-
-constexpr auto ADC_UNIT = ADC_UNIT_1;
-constexpr auto ADC_ATTENUATION = ADC_ATTEN_DB_12;
-constexpr auto ADC_BITWIDTH = ADC_BITWIDTH_DEFAULT;
 
 static constexpr float steinhart_algorithm(int millivolts) {
     // Constants for the thermistor
@@ -21,7 +22,7 @@ static constexpr float steinhart_algorithm(int millivolts) {
     constexpr float RS = 10000.0f; // Series resistor in ohms
 
     float volts = millivolts / 1000.0f;
-    assert(volts >= 0.0 && volts <= VIN);
+    assert(volts >= 0.0 and volts <= VIN);
 
     float rth = RS * volts / (VIN - volts);
 
@@ -32,53 +33,39 @@ static constexpr float steinhart_algorithm(int millivolts) {
     return temperature_kelvin - 273.15f;
 }
 
-TemperatureSensor::TemperatureSensor(adc_channel_t adc_channel)
-    : m_channel(adc_channel) {
-    adc_oneshot_unit_init_cfg_t adc_unit_config {};
-    adc_unit_config.unit_id = ADC_UNIT;
+TemperatureSensor::TemperatureSensor(etk::i2c::Master& i2c_master)
+    : m_dev_handle(TRY_OR_THROW(ads1115::init(i2c_master.bus_handle(), ads1115::AddrLine::GND, 400'000))) {
+    i2c_master.register_device(m_dev_handle);
 
-    ESP_ERROR_CHECK(adc_oneshot_new_unit(&adc_unit_config, &m_adc_unit_handle));
+    using namespace ads1115::reg;
 
-    adc_cali_line_fitting_config_t cali_config = {
-        .unit_id = ADC_UNIT,
-        .atten = ADC_ATTENUATION,
-        .bitwidth = ADC_BITWIDTH,
-        .default_vref = ADC_CALI_LINE_FITTING_EFUSE_VAL_EFUSE_VREF,
-    };
-    ESP_ERROR_CHECK(adc_cali_create_scheme_line_fitting(&cali_config, &m_calibration_handle));
+    TRY_OR_THROW(ads1115::write(
+        m_dev_handle,
+        Config {
+            .dr = Config::DataRate::_16SPS,
+            .mode = Config::Mode::ContinuousConversion,
+            .pga = Config::PGA::FSR_4_096V,
+            .mux = Config::Mux::AINP_AIN0_AINN_GND,
+        }));
 
-    adc_oneshot_chan_cfg_t config = {
-        .atten = ADC_ATTENUATION,
-        .bitwidth = ADC_BITWIDTH,
-    };
-    ESP_ERROR_CHECK(adc_oneshot_config_channel(m_adc_unit_handle, m_channel, &config));
-}
-
-TemperatureSensor::~TemperatureSensor() {
-    adc_oneshot_del_unit(m_adc_unit_handle);
-    adc_cali_delete_scheme_line_fitting(m_calibration_handle);
+    TRY_OR_THROW(ads1115::write(
+        m_dev_handle,
+        AddressPointer {
+            .p = AddressPointer::Register::Conversion,
+        }));
 }
 
 float TemperatureSensor::read_temperature() const {
-    constexpr size_t NUM_SAMPLES = 20;
-    constexpr size_t INVALID_EXTREMES = 20 * 0.2f;
+    auto conversion = MUST(ads1115::read<ads1115::reg::Conversion>(m_dev_handle)).d;
+    assert(conversion >= 0);
+    if (conversion == 0)
+        return 0.0f;
 
-    std::array<int, NUM_SAMPLES> samples;
-    for (auto& sample : samples) {
-        int raw;
-        ESP_ERROR_CHECK(adc_oneshot_read(m_adc_unit_handle, m_channel, &raw));
+    float millivolts = 4096.0f * (float(conversion) / INT16_MAX);
 
-        int voltage;
-        ESP_ERROR_CHECK(adc_cali_raw_to_voltage(m_calibration_handle, raw, &voltage));
+    LOGI("Sensor", "millivolts={}", millivolts);
 
-        sample = voltage;
-    }
-
-    std::sort(samples.begin(), samples.end());
-
-    float average_millivolts = std::accumulate(samples.begin() + (INVALID_EXTREMES / 2), samples.end() - (INVALID_EXTREMES / 2), 0) / float(samples.size() - INVALID_EXTREMES);
-
-    return steinhart_algorithm(std::lround(average_millivolts));
+    return steinhart_algorithm(millivolts);
 }
 
 }

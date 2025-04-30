@@ -1,6 +1,5 @@
 #pragma once
 
-#include <optional>
 #include <span>
 #include <string>
 #include <string_view>
@@ -10,147 +9,141 @@
 #include <nvs.h>
 #include <nvs_flash.h>
 
+#include <etk/error/error.hpp>
+
 namespace etk::nvs {
 
 class Store {
 public:
-    Store(const char* namespace_name) {
-        ESP_ERROR_CHECK(nvs_open(namespace_name, NVS_READWRITE, &m_handle));
-    }
+    static error::Expected<Store> make(const char* namespace_name, nvs_open_mode_t);
 
-    ~Store() {
-        nvs_close(m_handle);
-    }
+    Store(Store&& other) noexcept;
 
-    template<typename T>
-    requires std::is_trivially_copyable_v<T>
-    void set(const char* key, const T& value) {
-        ESP_ERROR_CHECK(nvs_set_blob(m_handle, key, &value, sizeof(value)));
-        ESP_ERROR_CHECK(nvs_commit(m_handle));
-    }
+    Store& operator=(Store&& other) noexcept;
+
+    ~Store();
+
+    Store(const Store&) = delete;
+    Store& operator=(const Store&) = delete;
 
     template<typename T>
     requires std::is_trivially_copyable_v<T>
-    void set(const char* key, std::span<const T> value) {
-        ESP_ERROR_CHECK(nvs_set_blob(m_handle, key, value.data(), value.size()));
-        ESP_ERROR_CHECK(nvs_commit(m_handle));
-    }
-
-    void set(const char* key, std::string_view value) {
-        ESP_ERROR_CHECK(nvs_set_blob(m_handle, key, value.data(), value.size()));
-        ESP_ERROR_CHECK(nvs_commit(m_handle));
-    }
+    error::Expected<void> set(const char* key, const T& value);
 
     template<typename T>
     requires std::is_trivially_copyable_v<T>
-    T get_or_create(const char* key, T default_value) {
-        alignas(T) std::byte storage[sizeof(T)];
-        auto length = sizeof(storage);
+    error::Expected<void> set(const char* key, std::span<const T> value);
 
-        auto error = nvs_get_blob(m_handle, key, &storage, &length);
-        if (error == ESP_ERR_NVS_NOT_FOUND) {
-            set(key, default_value);
-            return default_value;
-        }
-
-        ESP_ERROR_CHECK(error);
-
-        return *std::launder(reinterpret_cast<T*>(&storage));
-    }
+    error::Expected<void> set(const char* key, std::string_view value);
 
     template<typename T>
     requires std::is_trivially_copyable_v<T>
-    std::vector<T> get_or_create(const char* key, std::span<T const> default_value) {
-        size_t required_size;
+    error::Expected<T> get_or_create(const char* key, T default_value);
 
-        auto error = nvs_get_blob(m_handle, key, nullptr, &required_size);
-        if (error == ESP_ERR_NVS_NOT_FOUND) {
-            set(key, default_value);
-            return default_value;
-        }
+    template<typename T>
+    requires(std::is_trivially_copyable_v<T> and std::is_default_constructible_v<T>)
+    error::Expected<std::vector<T>> get_or_create(const char* key, std::span<const T> default_value);
 
-        ESP_ERROR_CHECK(error);
-
-        assert(required_size % sizeof(T) == 0);
-
-        std::vector<T> value(required_size / sizeof(T), T {});
-        ESP_ERROR_CHECK(nvs_get_blob(m_handle, key, value.data(), &required_size));
-
-        return value;
-    }
-
-    std::string get_or_create(const char* key, std::string_view default_value) {
-        size_t required_size;
-
-        auto error = nvs_get_blob(m_handle, key, nullptr, &required_size);
-        if (error == ESP_ERR_NVS_NOT_FOUND) {
-            set(key, default_value);
-            return std::string(default_value);
-        }
-
-        ESP_ERROR_CHECK(error);
-
-        std::string value(required_size, '\0');
-        ESP_ERROR_CHECK(nvs_get_blob(m_handle, key, value.data(), &required_size));
-
-        return value;
-    }
+    error::Expected<std::string> get_or_create(const char* key, std::string_view default_value);
 
     template<typename T>
     requires std::is_trivially_copyable_v<T>
-    std::optional<T> get(const char* key) {
-        alignas(T) std::byte storage[sizeof(T)];
-        auto length = sizeof(storage);
-
-        auto error = nvs_get_blob(m_handle, key, &storage, &length);
-        if (error == ESP_ERR_NVS_NOT_FOUND)
-            return std::nullopt;
-
-        ESP_ERROR_CHECK(error);
-
-        return *std::launder(reinterpret_cast<T*>(&storage));
-    }
+    error::Expected<T> get(const char* key);
 
     template<typename T>
-    requires std::is_trivially_copyable_v<T>
-    std::vector<T> get(const char* key) {
-        size_t required_size;
+    requires(std::is_trivially_copyable_v<T> and std::is_default_constructible_v<T>)
+    error::Expected<std::vector<T>> get(const char* key);
 
-        auto error = nvs_get_blob(m_handle, key, nullptr, &required_size);
-        if (error == ESP_ERR_NVS_NOT_FOUND)
-            return std::nullopt;
+    error::Expected<std::string> get(const char* key);
 
-        ESP_ERROR_CHECK(error);
-
-        assert(required_size % sizeof(T) == 0);
-
-        std::vector<T> value(required_size / sizeof(T), T {});
-        ESP_ERROR_CHECK(nvs_get_blob(m_handle, key, value.data(), &required_size));
-
-        return value;
-    }
-
-    std::optional<std::string> get(const char* key) {
-        size_t required_size;
-        auto error = nvs_get_blob(m_handle, key, nullptr, &required_size);
-        if (error == ESP_ERR_NVS_NOT_FOUND)
-            return std::nullopt;
-
-        ESP_ERROR_CHECK(error);
-
-        std::string value(required_size, '\0');
-        ESP_ERROR_CHECK(nvs_get_blob(m_handle, key, value.data(), &required_size));
-
-        return value;
-    }
-
-    void erase(const char* key) {
-        ESP_ERROR_CHECK(nvs_erase_key(m_handle, key));
-        ESP_ERROR_CHECK(nvs_commit(m_handle));
-    }
+    error::Expected<void> erase(const char* key);
 
 private:
+    Store(nvs_handle_t);
+
+    void destroy();
+
     nvs_handle_t m_handle;
 };
+
+template<typename T>
+requires std::is_trivially_copyable_v<T>
+error::Expected<void> Store::set(const char* key, const T& value) {
+    TRY_RAW(nvs_set_blob(m_handle, key, &value, sizeof(value)));
+    TRY_RAW(nvs_commit(m_handle));
+    return {};
+}
+
+template<typename T>
+requires std::is_trivially_copyable_v<T>
+error::Expected<void> Store::set(const char* key, std::span<const T> value) {
+    TRY_RAW(nvs_set_blob(m_handle, key, value.data(), value.size()));
+    TRY_RAW(nvs_commit(m_handle));
+    return {};
+}
+
+template<typename T>
+requires std::is_trivially_copyable_v<T>
+error::Expected<T> Store::get_or_create(const char* key, T default_value) {
+    alignas(T) std::byte storage[sizeof(T)];
+    size_t length = sizeof(storage);
+
+    auto error = nvs_get_blob(m_handle, key, &storage, &length);
+    if (error == ESP_ERR_NVS_NOT_FOUND) {
+        TRY(set(key, default_value));
+        return default_value;
+    }
+
+    TRY_RAW(error);
+
+    return *std::launder(reinterpret_cast<T*>(&storage));
+}
+
+template<typename T>
+requires(std::is_trivially_copyable_v<T> and std::is_default_constructible_v<T>)
+error::Expected<std::vector<T>> Store::get_or_create(const char* key, std::span<const T> default_value) {
+    size_t required_size;
+
+    auto error = nvs_get_blob(m_handle, key, nullptr, &required_size);
+    if (error == ESP_ERR_NVS_NOT_FOUND) {
+        TRY(set(key, default_value));
+        return default_value;
+    }
+
+    TRY_RAW(error);
+
+    assert(required_size % sizeof(T) == 0);
+
+    std::vector<T> value(required_size / sizeof(T), T {});
+    TRY_RAW(nvs_get_blob(m_handle, key, value.data(), &required_size));
+
+    return value;
+}
+
+template<typename T>
+requires std::is_trivially_copyable_v<T>
+error::Expected<T> Store::get(const char* key) {
+    alignas(T) std::byte storage[sizeof(T)];
+    size_t length = sizeof(storage);
+
+    TRY_RAW(nvs_get_blob(m_handle, key, &storage, &length));
+
+    return *std::launder(reinterpret_cast<T*>(&storage));
+}
+
+template<typename T>
+requires(std::is_trivially_copyable_v<T> and std::is_default_constructible_v<T>)
+error::Expected<std::vector<T>> Store::get(const char* key) {
+    size_t required_size;
+
+    TRY_RAW(nvs_get_blob(m_handle, key, nullptr, &required_size));
+
+    assert(required_size % sizeof(T) == 0);
+
+    std::vector<T> value(required_size / sizeof(T), T {});
+    TRY_RAW(nvs_get_blob(m_handle, key, value.data(), &required_size));
+
+    return value;
+}
 
 }

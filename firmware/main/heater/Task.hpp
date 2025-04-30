@@ -1,8 +1,8 @@
 #pragma once
 
-#include <numeric>
+#include <expected>
 
-#include <etk/io/Pin.hpp>
+#include <etk/i2c/Master.hpp>
 #include <xf/task/task.hpp>
 
 #include "TemperatureSensor.hpp"
@@ -44,17 +44,20 @@ struct Heating {
     relays::Controller relays_controller {};
     xf::time::Tick last_report {};
     xf::time::Tick last_phase_group_state_change {};
+
+    float min_temp { std::numeric_limits<float>::max() };
+    float max_temp { 0.0f };
 };
 
 }
 
-class Task : public xf::task::StaticTask<Task, 3192> {
+class Task : public xf::task::StaticTask<Task, 4096> {
     XF_TASK;
 
     void run_impl();
 
 public:
-    Task(command::Queue&);
+    Task(command::Queue&, etk::i2c::Master&);
 
 private:
     void handle_command(const HeaterControl&);

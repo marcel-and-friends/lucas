@@ -4,7 +4,7 @@
 
 #include <driver/gpio.h>
 
-namespace etk::io {
+namespace etk::gpio {
 
 enum class Invert {
     No,
@@ -72,7 +72,7 @@ public:
     }
 
     void write_normalized(float value) {
-        // configASSERT(value >= 0.0f && value <= 1.0f);
+        // configASSERT(value >= 0.0f and value <= 1.0f);
         write(static_cast<uint8_t>(value * PWM_MAX));
     }
 

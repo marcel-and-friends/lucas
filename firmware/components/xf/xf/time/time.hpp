@@ -32,7 +32,15 @@ inline Tick now() {
 
 template<typename rep, typename period>
 constexpr TickType_t to_raw_tick(std::chrono::duration<rep, period> duration) {
-    return duration >= FOREVER ? portMAX_DELAY : pdMS_TO_TICKS(std::chrono::duration_cast<Milliseconds>(duration).count());
+    if constexpr (std::same_as<Milliseconds, decltype(duration)>) {
+        return pdMS_TO_TICKS(duration.count());
+    } else {
+        return duration >= FOREVER ? portMAX_DELAY : pdMS_TO_TICKS(std::chrono::round<Milliseconds>(duration).count());
+    }
+}
+
+constexpr TickType_t to_raw_tick(Duration duration) {
+    return duration.count();
 }
 
 }

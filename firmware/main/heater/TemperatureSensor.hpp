@@ -1,21 +1,22 @@
 #pragma once
 
+#include <expected>
+
+#include <etk/i2c/Master.hpp>
+
+#include <driver/i2c_master.h>
 #include <esp_adc/adc_oneshot.h>
 
 namespace heater {
 
 class TemperatureSensor {
 public:
-    TemperatureSensor(adc_channel_t);
-
-    ~TemperatureSensor();
+    TemperatureSensor(etk::i2c::Master&);
 
     float read_temperature() const;
 
 private:
-    adc_channel_t m_channel;
-    adc_oneshot_unit_handle_t m_adc_unit_handle;
-    adc_cali_handle_t m_calibration_handle;
+    i2c_master_dev_handle_t m_dev_handle;
 };
 
 }

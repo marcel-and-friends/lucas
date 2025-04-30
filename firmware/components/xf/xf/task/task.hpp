@@ -8,6 +8,7 @@
 #include <optional>
 #include <tuple>
 #include <utility>
+
 #include <xf/time/time.hpp>
 #include <xf/util/fn.hpp>
 
@@ -218,18 +219,25 @@ public:
     Task(const Task&) = delete;
     Task& operator=(const Task&) = delete;
 
-    [[nodiscard]] bool create(const char* name, uint32_t stack_size, UBaseType_t priority, BaseType_t core_id = -1) {
+    [[nodiscard]] bool create(const char* name, uint32_t stack_size, UBaseType_t priority) {
         configASSERT(m_handle == nullptr);
-        if (core_id == -1) {
-            return xTaskCreate(task, name, stack_size, this, priority, &m_handle) == pdPASS;
-        } else {
-            return xTaskCreatePinnedToCore(task, name, stack_size, this, priority, &m_handle, core_id) == pdPASS;
-        }
+        return xTaskCreate(task, name, stack_size, this, priority, &m_handle) == pdPASS;
     }
 
-    [[nodiscard]] bool create(uint32_t stack_size, UBaseType_t priority, BaseType_t core_id = -1) {
+    [[nodiscard]] bool create(uint32_t stack_size, UBaseType_t priority) {
+        return create(nullptr, stack_size, priority);
+    }
+
+#if ESP_PLATFORM
+    [[nodiscard]] bool create_pinned_to_core(const char* name, uint32_t stack_size, UBaseType_t priority, BaseType_t core_id = -1) {
+        configASSERT(m_handle == nullptr);
+        return xTaskCreatePinnedToCore(task, name, stack_size, this, priority, &m_handle, core_id) == pdPASS;
+    }
+
+    [[nodiscard]] bool create_pinned_to_core(uint32_t stack_size, UBaseType_t priority, BaseType_t core_id = -1) {
         return create(nullptr, stack_size, priority, core_id);
     }
+#endif
 
     void suspend() {
         vTaskSuspend(m_handle);
@@ -352,22 +360,30 @@ class StaticTask : public Task<T> {
 public:
     static_assert(STACK_SIZE >= configMINIMAL_STACK_SIZE);
 
-    void create(const char* name, UBaseType_t priority, BaseType_t core_id = -1) {
+    void create(const char* name, UBaseType_t priority) {
         configASSERT(this->m_handle == nullptr);
-        if (core_id == -1) {
-            this->m_handle = xTaskCreateStatic(Task<T>::task, name, STACK_SIZE, this, priority, m_stack_buffer.data(), &m_static_task);
-        } else {
-            this->m_handle = xTaskCreateStaticPinnedToCore(Task<T>::task, name, STACK_SIZE, this, priority, m_stack_buffer.data(), &m_static_task, core_id);
-        }
+        this->m_handle = xTaskCreateStatic(Task<T>::task, name, STACK_SIZE, this, priority, m_stack_buffer.data(), &m_static_task);
     }
 
-    void create(UBaseType_t priority, BaseType_t core_id = -1) {
-        create(nullptr, priority, core_id);
+    void create(UBaseType_t priority) {
+        create(nullptr, priority);
     }
+
+#if ESP_PLATFORM
+    void create_pinned_to_core(const char* name, UBaseType_t priority, BaseType_t core_id) {
+        configASSERT(this->m_handle == nullptr);
+        this->m_handle = xTaskCreateStaticPinnedToCore(Task<T>::task, name, STACK_SIZE, this, priority, m_stack_buffer.data(), &m_static_task, core_id);
+    }
+
+    void create_pinned_to_core(UBaseType_t priority, BaseType_t core_id) {
+        create_pinned_to_core(nullptr, priority, core_id);
+    }
+#endif
 
 private:
     // Hide the visibility of the `create` function from the base class, since that has the stack size parameter
     using Task<T>::create;
+    using Task<T>::create_pinned_to_core;
 
     StaticTask_t m_static_task;
     std::array<StackType_t, STACK_SIZE> m_stack_buffer;

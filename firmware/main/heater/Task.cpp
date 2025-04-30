@@ -1,6 +1,6 @@
-#include <cfloat>
 #include <esp_adc/adc_continuous.h>
 
+#include <etk/gpio/Pin.hpp>
 #include <wxs/match.hpp>
 
 #include "Task.hpp"
@@ -12,14 +12,14 @@ namespace heater {
 
 static auto RELAYS = std::array {
     // Onboard LED connection on the devkit
-    etk::io::Output { GPIO_NUM_2 },
+    etk::gpio::Output { GPIO_NUM_2 },
 };
 
 static constexpr int percent_to_watts(float percent) {
     return std::lround(std::clamp(percent, 0.0f, 100.0f) * relays::TOTAL_WATTAGE / 100.0f);
 }
 
-Task::Task(command::Queue& command_queue)
+Task::Task(command::Queue& command_queue, etk::i2c::Master& i2c_master)
     : m_command_queue(command_queue)
     , m_pid_constants({
           .Kp = 1.0f,
@@ -27,7 +27,7 @@ Task::Task(command::Queue& command_queue)
           .Kd = 0.1f,
           .Dt = relays::PID_DELTA_TIME.count(),
       })
-    , m_temperature_sensor(ADC_CHANNEL_0) {
+    , m_temperature_sensor(i2c_master) {
 }
 
 void Task::run_impl() {
@@ -41,9 +41,6 @@ void Task::run_impl() {
                 handle_command(command);
             },
             [&](state::Heating& state) {
-                static float min_temp = FLT_MAX;
-                static float max_temp = 0.0f;
-
                 auto start = xf::time::now();
                 bool finished_stage = start >= state.deadline;
                 bool finished_heating = finished_stage and std::holds_alternative<state::Heating::HeatingStage>(state.stage);
@@ -54,7 +51,7 @@ void Task::run_impl() {
                     float seconds_elapsed = std::chrono::duration_cast<FloatSeconds>(start - state.start).count();
                     maestro::send_event({
                         .which_tag = FirmwareEvent_heating_report_tag,
-                        .heating_report = {
+                        .heating_report {
                             .temperature = read_temperature(),
                             .seconds_elapsed = seconds_elapsed,
                             .finished = finished_heating,
@@ -77,10 +74,8 @@ void Task::run_impl() {
                             return false;
                         },
                         [&](state::Heating::HeatingStage& stage) {
+                            LOGI("Heater", "Heating finished (min={}, max={})", state.min_temp, state.max_temp);
                             m_state = state::Idling {};
-                            LOGI("Heater", "Heating finished (min={}, max={})", min_temp, max_temp);
-                            min_temp = FLT_MAX;
-                            max_temp = 0.0f;
                             return true;
                         });
 
@@ -100,15 +95,14 @@ void Task::run_impl() {
                             return relays::find_best_phase_group_for_watts(watts);
                         });
 
-                    float temperature = m_temperature_sensor.read_temperature();
                     state.relays_controller.set_phase_group(phase_group);
-                    if (temperature > max_temp) {
-                        max_temp = temperature;
-                    }
 
-                    if (temperature < min_temp) {
-                        min_temp = temperature;
-                    }
+                    float temperature = m_temperature_sensor.read_temperature();
+                    if (temperature > state.max_temp)
+                        state.max_temp = temperature;
+
+                    if (temperature < state.min_temp)
+                        state.min_temp = temperature;
                 }
 
                 if (start - state.last_phase_group_state_change >= relays::AC_PHASE_CYCLE) {

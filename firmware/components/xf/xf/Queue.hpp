@@ -127,12 +127,12 @@ public:
     }
 
     [[nodiscard]] bool overwrite(const Item& item) {
-        static_assert(STATIC_SIZE == 1 || STATIC_SIZE == 0, "Overwrite must only be used with queues of size 1");
+        static_assert(STATIC_SIZE == 1 or STATIC_SIZE == 0, "Overwrite must only be used with queues of size 1");
         return generic_send(item, queueOVERWRITE, time::FOREVER);
     }
 
     [[nodiscard]] bool overwrite(Item&& item) {
-        static_assert(STATIC_SIZE == 1 || STATIC_SIZE == 0, "Overwrite must only be used with queues of size 1");
+        static_assert(STATIC_SIZE == 1 or STATIC_SIZE == 0, "Overwrite must only be used with queues of size 1");
         return generic_send(std::move(item), queueOVERWRITE, time::FOREVER);
     }
 
