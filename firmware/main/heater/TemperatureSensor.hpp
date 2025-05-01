@@ -16,7 +16,7 @@ public:
     float read_temperature() const;
 
 private:
-    i2c_master_dev_handle_t m_dev_handle;
+    i2c_master_dev_handle_t m_device_handle;
 };
 
 }

@@ -1,12 +1,12 @@
+// https://www.ti.com/lit/ds/symlink/ads1115.pdf
+
 #pragma once
 
-#include <cstring>
 #include <expected>
-#include <new>
 
 #include <driver/i2c_master.h>
 
-namespace ads1115 {
+namespace ads111x {
 
 namespace reg {
 
@@ -30,7 +30,7 @@ struct [[gnu::packed]] AddressPointer {
     unsigned reserved : 6 = 0b000000;
 };
 
-static_assert(sizeof(AddressPointer) == 1);
+static_assert(sizeof(AddressPointer) == sizeof(uint8_t));
 
 /// Conversion Register (P[1:0] = 00b) [reset = 0000h]
 ///
@@ -186,24 +186,24 @@ struct [[gnu::packed]] Config {
         // When writing:
 
         /// No effect.
-        Writing_NoEffect = 0b0,
+        NoEffect = 0b0,
         /// Start a single conversion (when in power-down state).
-        Writing_StartSingleConversion = 0b1,
+        StartSingleConversion = 0b1,
 
         // When reading:
 
         /// Device is currently performing a conversion.
-        Reading_PerformingConversion = 0b0,
+        PerformingConversion = 0b0,
         /// Device is not currently performing a conversion.
-        Reading_NotPerformingConversion = 0b1,
+        NotPerformingConversion = 0b1,
     }
     /// This bit determines the operational status of the device.
     /// OS can only be written when in power-down state and has no effect when a conversion is ongoing.
     os : 1
-        = OS::Reading_NotPerformingConversion;
+        = OS::NotPerformingConversion;
 };
 
-static_assert(sizeof(Config) == 2);
+static_assert(sizeof(Config) == sizeof(uint16_t));
 
 /// Lo_thresh (P[1:0] = 10b) [reset = 8000h] and Hi_thresh (P[1:0] = 11b) [reset = 7FFFh] Registers
 ///
@@ -214,7 +214,7 @@ struct Lo_thresh {
     int16_t lo_thresh = 0x8000;
 };
 
-static_assert(sizeof(Lo_thresh) == 2);
+static_assert(sizeof(Lo_thresh) == sizeof(uint16_t));
 
 /// Lo_thresh (P[1:0] = 10b) [reset = 8000h] and Hi_thresh (P[1:0] = 11b) [reset = 7FFFh] Registers
 ///
@@ -225,108 +225,29 @@ struct Hi_thresh {
     int16_t hi_thresh = 0x7FFF;
 };
 
-static_assert(sizeof(Hi_thresh) == 2);
-
-}
-
-namespace {
-
-inline std::expected<void, esp_err_t> write_raw(i2c_master_dev_handle_t handle, reg::AddressPointer address_pointer) {
-    if (auto err = i2c_master_transmit(handle, reinterpret_cast<const uint8_t*>(&address_pointer), sizeof(reg::AddressPointer), CONFIG_ADS1115_I2C_TIMEOUT))
-        return std::unexpected(err);
-
-    return {};
-}
-
-template<typename T>
-inline std::expected<void, esp_err_t> write_raw(i2c_master_dev_handle_t handle, reg::AddressPointer address_pointer, T reg) {
-    uint8_t final_buffer[sizeof(reg::AddressPointer) + sizeof(T)];
-
-    alignas(T) uint8_t be_buffer[sizeof(T)];
-
-    const auto* le_buffer = reinterpret_cast<const uint8_t*>(&reg);
-    for (size_t i = 0; i < sizeof(T); ++i)
-        be_buffer[sizeof(T) - 1 - i] = le_buffer[i];
-
-    std::memcpy(final_buffer, &address_pointer, sizeof(reg::AddressPointer));
-    std::memcpy(final_buffer + sizeof(reg::AddressPointer), be_buffer, sizeof(be_buffer));
-
-    if (auto err = i2c_master_transmit(handle, final_buffer, sizeof(final_buffer), CONFIG_ADS1115_I2C_TIMEOUT))
-        return std::unexpected(err);
-
-    return {};
-}
-
-template<typename T>
-inline std::expected<T, esp_err_t> read_raw(i2c_master_dev_handle_t handle) {
-    alignas(T) uint8_t be_buffer[sizeof(T)];
-    alignas(T) uint8_t le_buffer[sizeof(T)];
-
-    if (auto err = i2c_master_receive(handle, be_buffer, sizeof(be_buffer), CONFIG_ADS1115_I2C_TIMEOUT))
-        return std::unexpected(err);
-
-    for (size_t i = 0; i < sizeof(T); ++i)
-        le_buffer[i] = be_buffer[sizeof(T) - 1 - i];
-
-    return *std::launder<T>(reinterpret_cast<T*>(le_buffer));
-}
+static_assert(sizeof(Hi_thresh) == sizeof(uint16_t));
 
 }
 
 /// I2C Address Selection
 ///
 /// The ADS111x have one address pin, ADDR, that configures the I2C address of the device. This pin can be connected to GND, VDD, SDA, or SCL, allowing for four different addresses to be selected with one pin, as shown in Table 7-2. The state of address pin ADDR is sampled continuously. Use the GND, VDD and SCL addresses first. If SDA is used as the device address, hold the SDA line low for at least 100 ns after the SCL line goes low to make sure the device decodes the address correctly during I2C communication.
-enum class AddrLine : unsigned {
+enum class AddrSelection : uint16_t {
     GND = 0b1001000,
     VDD = 0b1001001,
     SDA = 0b1001010,
     SCL = 0b1001011,
 };
 
-inline std::expected<i2c_master_dev_handle_t, esp_err_t> init(i2c_master_bus_handle_t bus_handle, AddrLine addr_line, uint32_t scl_frequency) {
-    i2c_master_dev_handle_t dev_handle;
+std::expected<i2c_master_dev_handle_t, esp_err_t> init(i2c_master_bus_handle_t, AddrSelection, uint32_t scl_frequency);
 
-    i2c_device_config_t dev_config {};
-    dev_config.dev_addr_length = I2C_ADDR_BIT_LEN_7;
-    dev_config.device_address = static_cast<unsigned>(addr_line);
-    dev_config.scl_speed_hz = scl_frequency;
+std::expected<void, esp_err_t> write(i2c_master_dev_handle_t, reg::AddressPointer);
 
-    if (auto err = i2c_master_bus_add_device(bus_handle, &dev_config, &dev_handle))
-        return std::unexpected(err);
+std::expected<void, esp_err_t> write(i2c_master_dev_handle_t, reg::Config);
 
-    return dev_handle;
-}
+std::expected<void, esp_err_t> write(i2c_master_dev_handle_t, reg::Lo_thresh);
 
-inline std::expected<void, esp_err_t> write(i2c_master_dev_handle_t dev_handle, reg::AddressPointer address_pointer) {
-    return write_raw(dev_handle, address_pointer);
-}
-
-inline std::expected<void, esp_err_t> write(i2c_master_dev_handle_t dev_handle, reg::Config config) {
-    return write_raw(
-        dev_handle,
-        reg::AddressPointer {
-            .p = reg::AddressPointer::Register::Config,
-        },
-        config);
-}
-
-inline std::expected<void, esp_err_t> write(i2c_master_dev_handle_t dev_handle, reg::Lo_thresh lo_thresh) {
-    return write_raw(
-        dev_handle,
-        reg::AddressPointer {
-            .p = reg::AddressPointer::Register::Lo_thresh,
-        },
-        lo_thresh);
-}
-
-inline std::expected<void, esp_err_t> write(i2c_master_dev_handle_t dev_handle, reg::Hi_thresh hi_thresh) {
-    return write_raw(
-        dev_handle,
-        reg::AddressPointer {
-            .p = reg::AddressPointer::Register::Hi_thresh,
-        },
-        hi_thresh);
-}
+std::expected<void, esp_err_t> write(i2c_master_dev_handle_t, reg::Hi_thresh);
 
 template<typename T>
 std::expected<T, esp_err_t> read(i2c_master_dev_handle_t) {
@@ -334,23 +255,15 @@ std::expected<T, esp_err_t> read(i2c_master_dev_handle_t) {
 }
 
 template<>
-inline std::expected<reg::Conversion, esp_err_t> read<reg::Conversion>(i2c_master_dev_handle_t dev_handle) {
-    return read_raw<reg::Conversion>(dev_handle);
-}
+std::expected<reg::Conversion, esp_err_t> read<reg::Conversion>(i2c_master_dev_handle_t);
 
 template<>
-inline std::expected<reg::Config, esp_err_t> read<reg::Config>(i2c_master_dev_handle_t dev_handle) {
-    return read_raw<reg::Config>(dev_handle);
-}
+std::expected<reg::Config, esp_err_t> read<reg::Config>(i2c_master_dev_handle_t);
 
 template<>
-inline std::expected<reg::Lo_thresh, esp_err_t> read<reg::Lo_thresh>(i2c_master_dev_handle_t dev_handle) {
-    return read_raw<reg::Lo_thresh>(dev_handle);
-}
+std::expected<reg::Lo_thresh, esp_err_t> read<reg::Lo_thresh>(i2c_master_dev_handle_t);
 
 template<>
-inline std::expected<reg::Hi_thresh, esp_err_t> read<reg::Hi_thresh>(i2c_master_dev_handle_t dev_handle) {
-    return read_raw<reg::Hi_thresh>(dev_handle);
-}
+std::expected<reg::Hi_thresh, esp_err_t> read<reg::Hi_thresh>(i2c_master_dev_handle_t);
 
 }

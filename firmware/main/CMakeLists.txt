@@ -12,7 +12,7 @@ idf_component_register(
         bt
         esp_adc
         # Custom components
-        ads1115
+        ads111x
         etk
         wxs
         xf

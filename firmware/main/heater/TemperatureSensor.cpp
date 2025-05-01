@@ -3,7 +3,7 @@
 
 #include <driver/i2c_master.h>
 
-#include <ads1115/ads1115.hpp>
+#include <ads111x/ads111x.hpp>
 #include <wxs/match.hpp>
 
 #include "TemperatureSensor.hpp"
@@ -34,13 +34,13 @@ static constexpr float steinhart_algorithm(int millivolts) {
 }
 
 TemperatureSensor::TemperatureSensor(etk::i2c::Master& i2c_master)
-    : m_dev_handle(TRY_OR_THROW(ads1115::init(i2c_master.bus_handle(), ads1115::AddrLine::GND, 400'000))) {
-    i2c_master.register_device(m_dev_handle);
+    : m_device_handle(TRY_OR_THROW(ads111x::init(i2c_master.bus_handle(), ads111x::AddrSelection::GND, 400'000))) {
+    i2c_master.register_device(m_device_handle);
 
-    using namespace ads1115::reg;
+    using namespace ads111x::reg;
 
-    TRY_OR_THROW(ads1115::write(
-        m_dev_handle,
+    TRY_OR_THROW(ads111x::write(
+        m_device_handle,
         Config {
             .dr = Config::DataRate::_16SPS,
             .mode = Config::Mode::ContinuousConversion,
@@ -48,15 +48,15 @@ TemperatureSensor::TemperatureSensor(etk::i2c::Master& i2c_master)
             .mux = Config::Mux::AINP_AIN0_AINN_GND,
         }));
 
-    TRY_OR_THROW(ads1115::write(
-        m_dev_handle,
+    TRY_OR_THROW(ads111x::write(
+        m_device_handle,
         AddressPointer {
             .p = AddressPointer::Register::Conversion,
         }));
 }
 
 float TemperatureSensor::read_temperature() const {
-    auto conversion = MUST(ads1115::read<ads1115::reg::Conversion>(m_dev_handle)).d;
+    auto conversion = MUST(ads111x::read<ads111x::reg::Conversion>(m_device_handle)).d;
     assert(conversion >= 0);
     if (conversion == 0)
         return 0.0f;
