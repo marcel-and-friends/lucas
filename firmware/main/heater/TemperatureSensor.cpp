@@ -11,7 +11,7 @@
 
 namespace heater {
 
-static constexpr float steinhart_algorithm(int millivolts) {
+static constexpr float steinhart_algorithm(int volts) {
     // Constants for the thermistor
     constexpr float R0 = 50000.0f;  // 50kΩ @ 25°C
     constexpr float BETA = 3976.0f; // β25/80
@@ -20,9 +20,6 @@ static constexpr float steinhart_algorithm(int millivolts) {
     // Voltage divider setup
     constexpr float VIN = 3.3f;    // Supply voltage in volts
     constexpr float RS = 10000.0f; // Series resistor in ohms
-
-    float volts = millivolts / 1000.0f;
-    assert(volts >= 0.0 and volts <= VIN);
 
     float rth = RS * volts / (VIN - volts);
 
@@ -61,11 +58,11 @@ float TemperatureSensor::read_temperature() const {
     if (conversion == 0)
         return 0.0f;
 
-    float millivolts = 4096.0f * (float(conversion) / INT16_MAX);
+    float volts = 4.096f * (float(conversion) / INT16_MAX);
 
-    LOGI("Sensor", "millivolts={}", millivolts);
+    LOGI("Sensor", "volts={}", volts);
 
-    return steinhart_algorithm(millivolts);
+    return steinhart_algorithm(std::lround(volts));
 }
 
 }
