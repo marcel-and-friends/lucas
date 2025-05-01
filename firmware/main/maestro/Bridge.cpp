@@ -96,8 +96,8 @@ void Bridge::send_event(const FirmwareEvent& event) {
     }
 
     auto* mbuf = ble_hs_mbuf_from_flat(&buffer, stream.bytes_written);
-    if (int rc = ble_gatts_notify_custom(0, g_spp_characteristic.value_handle, mbuf))
-        LOGE("Bridge", "Notification failed (rc={})", rc);
+    if (int error = ble_gatts_notify_custom(0, g_spp_characteristic.value_handle, mbuf))
+        LOGE("Bridge", "Notification failed (error={})", error);
 }
 
 int Bridge::spp_gatt_event_handler(uint16_t, uint16_t, ble_gatt_access_ctxt* ctx, void*) {
@@ -106,8 +106,8 @@ int Bridge::spp_gatt_event_handler(uint16_t, uint16_t, ble_gatt_access_ctxt* ctx
         uint8_t buffer[AppCommand_size];
         uint16_t len;
 
-        if (ble_hs_mbuf_to_flat(ctx->om, buffer, sizeof(buffer), &len)) {
-            LOGE("Bridge", "Buffer is not big enough for payload (len={})", os_mbuf_len(ctx->om));
+        if (int error = ble_hs_mbuf_to_flat(ctx->om, buffer, sizeof(buffer), &len)) {
+            LOGE("Bridge", "Error reading mbuf (error={}, len={})", error, os_mbuf_len(ctx->om));
             break;
         }
 
@@ -115,7 +115,7 @@ int Bridge::spp_gatt_event_handler(uint16_t, uint16_t, ble_gatt_access_ctxt* ctx
 
         AppCommand message;
         if (not pb_decode(&stream, &AppCommand_msg, &message)) {
-            LOGE("Bridge", "Decoding failed (error={})", PB_GET_ERROR(&stream));
+            LOGE("Bridge", "Decoding failed (error=\"{}\")", PB_GET_ERROR(&stream));
             break;
         }
 
@@ -150,10 +150,10 @@ int Bridge::gap_event_handler(ble_gap_event* event, void*) {
         begin_advertising();
         break;
     case BLE_GAP_EVENT_MTU:
-        LOGW("Bridge", "MTU updated (cid={}, mtu={})", event->mtu.channel_id, event->mtu.value);
+        LOGW("Bridge", "MTU updated (mtu={})", event->mtu.value);
         break;
     case BLE_GAP_EVENT_SUBSCRIBE:
-        LOGI("Bridge", "Subscribe event (attr_handle={}, notifying={})", event->subscribe.attr_handle, static_cast<uint8_t>(event->subscribe.cur_notify));
+        LOGI("Bridge", "Subscribe event (notifying={})", static_cast<uint8_t>(event->subscribe.cur_notify));
         break;
     default:
         break;
