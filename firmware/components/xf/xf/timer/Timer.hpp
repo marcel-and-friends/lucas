@@ -140,8 +140,7 @@ void Timer<Ctx...>::create(const char* name, std::chrono::duration<Rep, Period> 
 template<typename... Ctx>
 requires(!std::is_reference_v<Ctx> && ...)
 void Timer<Ctx...>::await_start() {
-    auto ret = start(time::FOREVER);
-    configASSERT(ret == true);
+    (void)start(time::FOREVER);
 }
 
 template<typename... Ctx>
@@ -154,8 +153,7 @@ bool Timer<Ctx...>::start(std::chrono::duration<Rep, Period> timeout) {
 template<typename... Ctx>
 requires(!std::is_reference_v<Ctx> && ...)
 void Timer<Ctx...>::await_stop() {
-    auto ret = stop(time::FOREVER);
-    configASSERT(ret == true);
+    (void)stop(time::FOREVER);
 }
 
 template<typename... Ctx>
@@ -169,8 +167,7 @@ template<typename... Ctx>
 requires(!std::is_reference_v<Ctx> && ...)
 template<typename Rep, typename Period>
 void Timer<Ctx...>::await_change_period(std::chrono::duration<Rep, Period> period) {
-    auto ret = change_period(period, time::FOREVER);
-    configASSERT(ret == true);
+    (void)change_period(period, time::FOREVER);
 }
 
 template<typename... Ctx>
@@ -183,8 +180,7 @@ bool Timer<Ctx...>::change_period(std::chrono::duration<Rep, Period> period, std
 template<typename... Ctx>
 requires(!std::is_reference_v<Ctx> && ...)
 void Timer<Ctx...>::await_reset() {
-    auto ret = reset(time::FOREVER);
-    configASSERT(ret == true);
+    (void)reset(time::FOREVER);
 }
 
 template<typename... Ctx>
@@ -197,8 +193,7 @@ bool Timer<Ctx...>::reset(std::chrono::duration<Rep, Period> timeout) {
 template<typename... Ctx>
 requires(!std::is_reference_v<Ctx> && ...)
 void Timer<Ctx...>::await_destroy() {
-    auto ret = destroy(time::FOREVER);
-    configASSERT(ret == true);
+    (void)destroy(time::FOREVER);
 }
 
 template<typename... Ctx>

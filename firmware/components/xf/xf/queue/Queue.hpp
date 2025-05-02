@@ -137,14 +137,12 @@ void Queue<Item>::destroy() {
 
 template<typename Item>
 void Queue<Item>::await_send(const Item& item) {
-    auto ret = send(item, time::FOREVER);
-    configASSERT(ret == true);
+    (void)send(item, time::FOREVER);
 }
 
 template<typename Item>
 void Queue<Item>::await_send(Item&& item) {
-    auto ret = send(std::move(item), time::FOREVER);
-    configASSERT(ret == true);
+    (void)send(std::move(item), time::FOREVER);
 }
 
 template<typename Item>

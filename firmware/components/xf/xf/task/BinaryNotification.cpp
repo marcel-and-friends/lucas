@@ -7,8 +7,7 @@ void BinaryNotification::set() {
 }
 
 void BinaryNotification::await_get() {
-    auto ret = get(time::FOREVER);
-    configASSERT(ret == true);
+    (void)get(time::FOREVER);
 }
 
 bool BinaryNotification::current_value() {

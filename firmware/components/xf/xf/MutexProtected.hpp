@@ -77,8 +77,7 @@ template<typename T>
 template<std::invocable<T&> FN, typename R>
 R MutexProtected<T>::await_access(FN&& callback) {
     if constexpr (std::is_void_v<R>) {
-        auto ret = access(std::forward<FN>(callback), time::FOREVER);
-        configASSERT(ret.has_value());
+        access(std::forward<FN>(callback), time::FOREVER);
         return;
     } else {
         return access(std::forward<FN>(callback), time::FOREVER).value();
@@ -89,8 +88,7 @@ template<typename T>
 template<std::invocable<const T&> FN, typename R>
 R MutexProtected<T>::await_access(FN&& callback) const {
     if constexpr (std::is_void_v<R>) {
-        auto ret = access(std::forward<FN>(callback), time::FOREVER);
-        configASSERT(ret.has_value());
+        access(std::forward<FN>(callback), time::FOREVER);
         return;
     } else {
         return access(std::forward<FN>(callback), time::FOREVER).value();
@@ -106,15 +104,13 @@ std::optional<std::conditional_t<std::is_void_v<R>, std::monostate, R>> MutexPro
     if constexpr (std::is_void_v<R>) {
         std::invoke(std::forward<FN>(callback), m_value);
 
-        auto give = xSemaphoreGive(m_handle);
-        configASSERT(give == pdTRUE);
+        xSemaphoreGive(m_handle);
 
         return std::monostate {};
     } else {
         auto result = std::invoke(std::forward<FN>(callback), m_value);
 
-        auto give = xSemaphoreGive(m_handle);
-        configASSERT(give == pdTRUE);
+        xSemaphoreGive(m_handle);
 
         return result;
     }
