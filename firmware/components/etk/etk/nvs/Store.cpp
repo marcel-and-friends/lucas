@@ -14,6 +14,10 @@ Store::Store(nvs_handle_t handle)
     : m_handle(handle) {
 }
 
+Store::~Store() {
+    destroy();
+}
+
 Store::Store(Store&& other) noexcept
     : m_handle(std::exchange(other.m_handle, 0)) { }
 
@@ -23,10 +27,6 @@ Store& Store::operator=(Store&& other) noexcept {
         m_handle = std::exchange(other.m_handle, 0);
     }
     return *this;
-}
-
-Store::~Store() {
-    destroy();
 }
 
 error::Expected<void> Store::set(const char* key, std::string_view value) {

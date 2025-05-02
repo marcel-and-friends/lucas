@@ -25,11 +25,10 @@ public:
 
     Queue() = default;
 
-    Queue(Queue&&) noexcept;
-
-    Queue& operator=(Queue&&) noexcept;
-
     ~Queue();
+
+    Queue(Queue&&) noexcept;
+    Queue& operator=(Queue&&) noexcept;
 
     // There is no mechanism in FreeRTOS to copy a queue
     Queue(const Queue&) = delete;
@@ -102,6 +101,12 @@ private:
 };
 
 template<typename Item>
+Queue<Item>::~Queue() {
+    if (m_handle)
+        destroy();
+}
+
+template<typename Item>
 Queue<Item>::Queue(Queue&& other) noexcept
     : m_handle(std::exchange(other.m_handle, nullptr)) {
 }
@@ -114,12 +119,6 @@ Queue<Item>& Queue<Item>::operator=(Queue&& other) noexcept {
         m_handle = std::exchange(other.m_handle, nullptr);
     }
     return *this;
-}
-
-template<typename Item>
-Queue<Item>::~Queue() {
-    if (m_handle)
-        destroy();
 }
 
 template<typename Item>

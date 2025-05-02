@@ -10,6 +10,10 @@ error::Expected<Master> Master::make(i2c_master_bus_config_t bus_config) {
     return Master(bus_handle);
 }
 
+Master::~Master() {
+    MUST(destroy());
+}
+
 Master::Master(i2c_master_bus_handle_t bus_handle)
     : m_bus_handle(bus_handle) {
 }
@@ -25,10 +29,6 @@ Master& Master::operator=(Master&& other) noexcept {
         m_device_handles = std::exchange(other.m_device_handles, {});
     }
     return *this;
-}
-
-Master::~Master() {
-    MUST(destroy());
 }
 
 void Master::register_device(i2c_master_dev_handle_t device_handle) {

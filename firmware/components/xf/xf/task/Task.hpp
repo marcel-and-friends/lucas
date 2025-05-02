@@ -21,11 +21,10 @@ public:
 
     Task(size_t notification_index_do_not_override_default_value = 0);
 
-    Task(Task&&) noexcept;
-
-    Task& operator=(Task&&) noexcept;
-
     virtual ~Task();
+
+    Task(Task&&) noexcept;
+    Task& operator=(Task&&) noexcept;
 
     // There is no mechanism in FreeRTOS to copy a task
     Task(const Task&) = delete;
@@ -93,6 +92,12 @@ Task<Notifications...>::Task(size_t notification_index)
     } { }
 
 template<std::derived_from<Notification>... Notifications>
+Task<Notifications...>::~Task() {
+    if (m_handle)
+        destroy();
+}
+
+template<std::derived_from<Notification>... Notifications>
 Task<Notifications...>::Task(Task&& other) noexcept
     : m_handle(std::exchange(other.m_handle, nullptr))
     , m_notifications(std::move(other.m_notifications)) {
@@ -107,12 +112,6 @@ Task<Notifications...>& Task<Notifications...>::operator=(Task&& other) noexcept
         m_notifications = std::move(other.m_notifications);
     }
     return *this;
-}
-
-template<std::derived_from<Notification>... Notifications>
-Task<Notifications...>::~Task() {
-    if (m_handle)
-        destroy();
 }
 
 template<std::derived_from<Notification>... Notifications>

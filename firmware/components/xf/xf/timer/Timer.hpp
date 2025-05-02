@@ -28,11 +28,10 @@ public:
 
     Timer(Mode, Callback, Ctx&...);
 
-    Timer(Timer&&) noexcept;
-
-    Timer& operator=(Timer&&) noexcept;
-
     ~Timer();
+
+    Timer(Timer&&) noexcept;
+    Timer& operator=(Timer&&) noexcept;
 
     // There is no mechanism in FreeRTOS to copy a timer
     Timer(const Timer&) = delete;
@@ -95,6 +94,13 @@ Timer<Ctx...>::Timer(Mode mode, Callback callback, Ctx&... ctx)
 
 template<typename... Ctx>
 requires(!std::is_reference_v<Ctx> && ...)
+Timer<Ctx...>::~Timer() {
+    if (m_handle)
+        await_destroy();
+}
+
+template<typename... Ctx>
+requires(!std::is_reference_v<Ctx> && ...)
 Timer<Ctx...>::Timer(Timer&& other) noexcept
     : m_handle(std::exchange(other.m_handle, nullptr))
     , m_callback(std::exchange(other.m_callback, nullptr))
@@ -114,13 +120,6 @@ Timer<Ctx...>& Timer<Ctx...>::operator=(Timer&& other) noexcept {
         m_mode = other.m_mode;
     }
     return *this;
-}
-
-template<typename... Ctx>
-requires(!std::is_reference_v<Ctx> && ...)
-Timer<Ctx...>::~Timer() {
-    if (m_handle)
-        await_destroy();
 }
 
 template<typename... Ctx>

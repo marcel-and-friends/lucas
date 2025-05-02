@@ -16,16 +16,17 @@ using Handle = SemaphoreHandle_t;
 template<typename T>
 class Protected {
 public:
-    Protected(const Protected&) = delete;
-    Protected(Protected&&) = delete;
-    Protected& operator=(const Protected&) = delete;
-    Protected& operator=(Protected&&) = delete;
-
     template<typename... Args>
     requires std::constructible_from<T, Args...>
     explicit Protected(Args&&...);
 
     ~Protected();
+
+    Protected(const Protected&) = delete;
+    Protected(Protected&&) = delete;
+
+    Protected& operator=(const Protected&) = delete;
+    Protected& operator=(Protected&&) = delete;
 
     void create();
 

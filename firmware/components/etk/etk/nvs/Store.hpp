@@ -17,11 +17,10 @@ class Store {
 public:
     static error::Expected<Store> make(const char* namespace_name, nvs_open_mode_t);
 
-    Store(Store&&) noexcept;
-
-    Store& operator=(Store&&) noexcept;
-
     ~Store();
+
+    Store(Store&&) noexcept;
+    Store& operator=(Store&&) noexcept;
 
     Store(const Store&) = delete;
     Store& operator=(const Store&) = delete;
