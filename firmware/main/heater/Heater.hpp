@@ -52,11 +52,11 @@ struct Heating {
 
 }
 
-class Task final : public xf::task::StaticTask<4096> {
+class Heater final : public xf::task::StaticTask<4096> {
     void run() override;
 
 public:
-    Task(command::Queue&, etk::i2c::Master&);
+    Heater(command::Queue&, etk::i2c::Master&);
 
 private:
     void handle_command(const HeaterControl&);

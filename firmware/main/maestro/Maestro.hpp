@@ -8,7 +8,7 @@
 #include <xf/timer/Timer.hpp>
 
 #include "Bridge.hpp"
-#include <heater/Task.hpp>
+#include <heater/Heater.hpp>
 
 namespace maestro {
 
@@ -36,7 +36,7 @@ private:
 
     Bridge m_bridge;
 
-    heater::Task m_heater;
+    heater::Heater m_heater;
 };
 
 void send_event(const FirmwareEvent&);

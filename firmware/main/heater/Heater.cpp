@@ -5,7 +5,7 @@
 #include <etk/gpio/Pin.hpp>
 #include <wxs/match.hpp>
 
-#include "Task.hpp"
+#include "Heater.hpp"
 #include <maestro/Maestro.hpp>
 #include <util/literals.hpp>
 #include <util/log.hpp>
@@ -21,7 +21,7 @@ static constexpr int percent_to_watts(float percent) {
     return std::lround(std::clamp(percent, 0.0f, 100.0f) * relays::TOTAL_WATTAGE / 100.0f);
 }
 
-Task::Task(command::Queue& command_queue, etk::i2c::Master& i2c_master)
+Heater::Heater(command::Queue& command_queue, etk::i2c::Master& i2c_master)
     : m_command_queue(command_queue)
     , m_pid_constants({
           .Kp = 1.0f,
@@ -32,7 +32,7 @@ Task::Task(command::Queue& command_queue, etk::i2c::Master& i2c_master)
     , m_temperature_sensor(i2c_master) {
 }
 
-void Task::run() {
+void Heater::run() {
     static constexpr xf::time::Duration REPORT_INTERVAL = 250ms;
 
     while (true) {
@@ -126,7 +126,7 @@ void Task::run() {
     }
 }
 
-void Task::handle_command(const HeaterControl& command) {
+void Heater::handle_command(const HeaterControl& command) {
     static constexpr xf::time::Duration PREHEAT_DURATION = 1s;
     static constexpr float PREHEAT_MULTIPLIER = 2.0f;
 
@@ -155,7 +155,7 @@ void Task::handle_command(const HeaterControl& command) {
     };
 }
 
-float Task::read_temperature() const {
+float Heater::read_temperature() const {
     return 25.0f;
 }
 }

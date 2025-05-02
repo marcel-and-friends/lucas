@@ -3,7 +3,7 @@ idf_component_register(
         main.cpp
         maestro/Maestro.cpp
         maestro/Bridge.cpp
-        heater/Task.cpp
+        heater/Heater.cpp
         heater/TemperatureSensor.cpp
     INCLUDE_DIRS
         "."
