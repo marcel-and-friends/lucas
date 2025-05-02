@@ -2,7 +2,7 @@
 
 #include <type_traits>
 
-namespace xf::util {
+namespace xf {
 
 enum class ControlFlow {
     Continue,
@@ -10,6 +10,7 @@ enum class ControlFlow {
 };
 
 namespace detail {
+
 template<typename FN, typename Ret, typename... Args>
 consteval bool invocable_matches_signature(Ret (*)(Args...)) {
     if constexpr (std::is_invocable_v<FN, Args...>) {
@@ -18,6 +19,7 @@ consteval bool invocable_matches_signature(Ret (*)(Args...)) {
         return false;
     }
 }
+
 }
 
 template<typename FN, typename Signature>

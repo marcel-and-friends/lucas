@@ -4,19 +4,18 @@
 #include <etk/nvs/PersistentValue.hpp>
 #include <etk/nvs/Store.hpp>
 #include <xf/MutexProtected.hpp>
-#include <xf/task/task.hpp>
+#include <xf/task/StaticTask.hpp>
+#include <xf/timer/Timer.hpp>
 
 #include "Bridge.hpp"
 #include <heater/Task.hpp>
 
 namespace maestro {
 
-class Maestro : public xf::task::StaticTask<Maestro, 4096> {
-    XF_TASK;
+class Maestro final : public xf::task::StaticTask<4096> {
+    void setup() override;
 
-    void setup_impl();
-
-    void run_impl();
+    void run() override;
 
 public:
     static void start();

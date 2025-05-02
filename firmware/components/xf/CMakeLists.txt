@@ -1,1 +1,9 @@
-idf_component_register(INCLUDE_DIRS ".")
+idf_component_register(
+    SRCS
+        xf/task/BinaryNotification.cpp
+        xf/task/CountingNotification.cpp
+        xf/task/Notification.cpp
+        xf/task/isr/BinaryNotification.cpp
+        xf/task/isr/CountingNotification.cpp
+    INCLUDE_DIRS "."
+)

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
@@ -21,7 +22,7 @@ struct Clock {
 
 using Tick = Clock::time_point;
 using Duration = Clock::duration;
-using Milliseconds = std::chrono::duration<TickType_t, std::milli>;
+using Milliseconds = std::chrono::duration<Clock::rep, std::milli>;
 
 constexpr auto FOREVER = Duration { portMAX_DELAY };
 constexpr auto NO_WAIT = Duration { 0 };

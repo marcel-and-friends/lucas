@@ -1,11 +1,11 @@
 #pragma once
 
-#include <xf/Queue.hpp>
+#include <xf/queue/StaticQueue.hpp>
 
 #include <proto/app/AppCommand.pb.h>
 
 namespace maestro::command {
 
-using Queue = xf::Queue<AppCommand, 5>;
+using Queue = xf::queue::StaticQueue<AppCommand, 5>;
 
 }

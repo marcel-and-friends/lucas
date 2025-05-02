@@ -1,20 +1,19 @@
 #pragma once
 
 #include <concepts>
-#include <freertos/FreeRTOS.h>
 #include <memory>
 #include <utility>
 
-namespace xf::util {
+#include <freertos/FreeRTOS.h>
+
+namespace xf::mem {
 
 template<typename T>
 T* allocate() {
-    static_assert(configSUPPORT_DYNAMIC_ALLOCATION, "Dynamic allocation is not supported");
     return static_cast<T*>(pvPortMalloc(sizeof(T)));
 }
 
 inline void deallocate(void* ptr) {
-    static_assert(configSUPPORT_DYNAMIC_ALLOCATION, "Dynamic allocation is not supported");
     vPortFree(ptr);
 }
 

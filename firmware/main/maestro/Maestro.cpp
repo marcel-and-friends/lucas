@@ -33,14 +33,14 @@ Maestro::Maestro()
     s_instance = this;
 }
 
-void Maestro::setup_impl() {
+void Maestro::setup() {
     m_command_queue.create();
     m_heater_command_queue.create();
 
     m_heater.create_pinned_to_core(10, APP_CPU_NUM);
 }
 
-void Maestro::run_impl() {
+void Maestro::run() {
     while (true) {
         auto command = m_command_queue.await_receive();
         LOGI("Maestro", "Received command (tag={})", command.which_tag);

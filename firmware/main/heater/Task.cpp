@@ -1,3 +1,5 @@
+#include <cmath>
+
 #include <esp_adc/adc_continuous.h>
 
 #include <etk/gpio/Pin.hpp>
@@ -30,7 +32,7 @@ Task::Task(command::Queue& command_queue, etk::i2c::Master& i2c_master)
     , m_temperature_sensor(i2c_master) {
 }
 
-void Task::run_impl() {
+void Task::run() {
     static constexpr xf::time::Duration REPORT_INTERVAL = 250ms;
 
     while (true) {

@@ -1,9 +1,5 @@
 #pragma once
 
-#include <cstddef>
-
-#include <xf/Queue.hpp>
-
 #include "command.hpp"
 #include <proto/firmware/FirmwareEvent.pb.h>
 

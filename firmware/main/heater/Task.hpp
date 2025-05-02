@@ -3,7 +3,8 @@
 #include <expected>
 
 #include <etk/i2c/Master.hpp>
-#include <xf/task/task.hpp>
+#include <xf/task/CountingNotification.hpp>
+#include <xf/task/StaticTask.hpp>
 
 #include "TemperatureSensor.hpp"
 #include "command.hpp"
@@ -51,10 +52,8 @@ struct Heating {
 
 }
 
-class Task : public xf::task::StaticTask<Task, 4096> {
-    XF_TASK;
-
-    void run_impl();
+class Task final : public xf::task::StaticTask<4096> {
+    void run() override;
 
 public:
     Task(command::Queue&, etk::i2c::Master&);

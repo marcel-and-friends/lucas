@@ -1,11 +1,11 @@
 #pragma once
 
-#include <xf/Queue.hpp>
+#include <xf/queue/StaticQueue.hpp>
 
 #include <proto/app/HeaterControl.pb.h>
 
 namespace heater::command {
 
-using Queue = xf::Queue<HeaterControl, 2>;
+using Queue = xf::queue::StaticQueue<HeaterControl, 2>;
 
 }
