@@ -135,7 +135,7 @@ error::Expected<PersistentValue<std::optional<T>>> PersistentValue<std::optional
 template<typename T>
 error::Expected<PersistentValue<std::optional<T>>> PersistentValue<std::optional<T>>::make(Store& store, const char* key) {
     if (auto cached_value = store.get(key)) {
-        return PersistentValue(store, key, *cached_value);
+        return PersistentValue(store, key, *std::move(cached_value));
     } else {
         return PersistentValue(store, key, std::nullopt);
     }
