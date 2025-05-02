@@ -22,11 +22,10 @@ public:
 
     ~Protected();
 
-    Protected(const Protected&) = delete;
     Protected(Protected&&) = delete;
-
-    Protected& operator=(const Protected&) = delete;
     Protected& operator=(Protected&&) = delete;
+    Protected(const Protected&) = delete;
+    Protected& operator=(const Protected&) = delete;
 
     void create();
 
