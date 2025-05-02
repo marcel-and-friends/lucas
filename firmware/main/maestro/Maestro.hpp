@@ -3,7 +3,6 @@
 #include <etk/i2c/Master.hpp>
 #include <etk/nvs/PersistentValue.hpp>
 #include <etk/nvs/Store.hpp>
-#include <xf/MutexProtected.hpp>
 #include <xf/task/StaticTask.hpp>
 #include <xf/timer/Timer.hpp>
 
