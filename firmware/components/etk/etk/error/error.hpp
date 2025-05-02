@@ -33,7 +33,7 @@ private:
 
 namespace detail {
 
-void must_failed_print(esp_err_t error_code, const char* file, int line, const char* function, const char* expression);
+void must_failed_print(esp_err_t, const char* file, int line, const char* function, const char* expression);
 
 }
 

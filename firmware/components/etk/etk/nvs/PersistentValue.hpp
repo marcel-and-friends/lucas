@@ -9,7 +9,7 @@ namespace etk::nvs {
 template<typename T>
 class PersistentValue {
 public:
-    static error::Expected<PersistentValue> make(Store&, const char* key, const auto& default_value);
+    static error::Expected<PersistentValue> make(Store&, const char* key, const auto& fallback_value);
 
     PersistentValue(PersistentValue&&);
     PersistentValue& operator=(PersistentValue&&);
@@ -38,7 +38,7 @@ private:
 template<typename T>
 class PersistentValue<std::optional<T>> {
 public:
-    static error::Expected<PersistentValue> make(Store&, const char* key, const auto& default_value);
+    static error::Expected<PersistentValue> make(Store&, const char* key, const auto& fallback_value);
 
     static error::Expected<PersistentValue> make(Store&, const char* key);
 
@@ -67,8 +67,8 @@ private:
 };
 
 template<typename T>
-error::Expected<PersistentValue<T>> PersistentValue<T>::make(Store& store, const char* key, const auto& default_value) {
-    auto cached_value = TRY(store.get_or_create(key, default_value));
+error::Expected<PersistentValue<T>> PersistentValue<T>::make(Store& store, const char* key, const auto& fallback_value) {
+    auto cached_value = TRY(store.get_or_create(key, fallback_value));
     TRY(store.commit());
     return PersistentValue(store, key, std::move(cached_value));
 }
@@ -126,8 +126,8 @@ const T& PersistentValue<T>::load() const {
 }
 
 template<typename T>
-error::Expected<PersistentValue<std::optional<T>>> PersistentValue<std::optional<T>>::make(Store& store, const char* key, const auto& default_value) {
-    auto cached_value = TRY(store.get_or_create(key, default_value));
+error::Expected<PersistentValue<std::optional<T>>> PersistentValue<std::optional<T>>::make(Store& store, const char* key, const auto& fallback_value) {
+    auto cached_value = TRY(store.get_or_create(key, fallback_value));
     TRY(store.commit());
     return PersistentValue(store, key, std::move(cached_value));
 }

@@ -34,12 +34,12 @@ public:
 
     ~Timer();
 
-    // There are no mechanism in FreeRTOS to copy a timer
+    // There is no mechanism in FreeRTOS to copy a timer
     Timer(const Timer&) = delete;
     Timer& operator=(const Timer&) = delete;
 
     template<typename Rep, typename Period>
-    void create(const char* id, std::chrono::duration<Rep, Period> period);
+    void create(const char* name, std::chrono::duration<Rep, Period> period);
 
     void await_start();
 
@@ -126,10 +126,10 @@ Timer<Ctx...>::~Timer() {
 template<typename... Ctx>
 requires(!std::is_reference_v<Ctx> && ...)
 template<typename Rep, typename Period>
-void Timer<Ctx...>::create(const char* id, std::chrono::duration<Rep, Period> period) {
+void Timer<Ctx...>::create(const char* name, std::chrono::duration<Rep, Period> period) {
     configASSERT(m_handle == nullptr);
     m_handle = xTimerCreateStatic(
-        id,
+        name,
         time::to_raw_tick(period),
         m_mode == Mode::Repeating,
         this,

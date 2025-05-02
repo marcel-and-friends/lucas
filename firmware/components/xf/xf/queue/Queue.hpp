@@ -25,13 +25,13 @@ public:
 
     Queue() = default;
 
-    Queue(Queue&& other) noexcept;
+    Queue(Queue&&) noexcept;
 
-    Queue& operator=(Queue&& other) noexcept;
+    Queue& operator=(Queue&&) noexcept;
 
     ~Queue();
 
-    // There are no mechanism in FreeRTOS to copy a queue
+    // There is no mechanism in FreeRTOS to copy a queue
     Queue(const Queue&) = delete;
     Queue operator=(const Queue&) = delete;
 
@@ -39,9 +39,9 @@ public:
 
     void destroy();
 
-    void await_send(const Item& item);
+    void await_send(const Item&);
 
-    void await_send(Item&& item);
+    void await_send(Item&&);
 
     void reset_and_await_send(const Item&);
 

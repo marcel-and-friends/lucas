@@ -17,9 +17,9 @@ class Store {
 public:
     static error::Expected<Store> make(const char* namespace_name, nvs_open_mode_t);
 
-    Store(Store&& other) noexcept;
+    Store(Store&&) noexcept;
 
-    Store& operator=(Store&& other) noexcept;
+    Store& operator=(Store&&) noexcept;
 
     ~Store();
 
@@ -38,13 +38,13 @@ public:
 
     template<typename T>
     requires std::is_trivially_copyable_v<T>
-    error::Expected<T> get_or_create(const char* key, T default_value);
+    error::Expected<T> get_or_create(const char* key, T fallback_value);
 
     template<typename T>
     requires(std::is_trivially_copyable_v<T> and std::is_default_constructible_v<T>)
-    error::Expected<std::vector<T>> get_or_create(const char* key, std::span<const T> default_value);
+    error::Expected<std::vector<T>> get_or_create(const char* key, std::span<const T> fallback_value);
 
-    error::Expected<std::string> get_or_create(const char* key, std::string_view default_value);
+    error::Expected<std::string> get_or_create(const char* key, std::string_view fallback_value);
 
     template<typename T>
     requires std::is_trivially_copyable_v<T>
@@ -83,14 +83,14 @@ error::Expected<void> Store::set(const char* key, std::span<const T> value) {
 
 template<typename T>
 requires std::is_trivially_copyable_v<T>
-error::Expected<T> Store::get_or_create(const char* key, T default_value) {
+error::Expected<T> Store::get_or_create(const char* key, T fallback_value) {
     alignas(T) std::byte storage[sizeof(T)];
     size_t length = sizeof(storage);
 
     auto error = nvs_get_blob(m_handle, key, &storage, &length);
     if (error == ESP_ERR_NVS_NOT_FOUND) {
-        TRY(set(key, default_value));
-        return default_value;
+        TRY(set(key, fallback_value));
+        return fallback_value;
     }
 
     TRY_RAW(error);
@@ -100,13 +100,13 @@ error::Expected<T> Store::get_or_create(const char* key, T default_value) {
 
 template<typename T>
 requires(std::is_trivially_copyable_v<T> and std::is_default_constructible_v<T>)
-error::Expected<std::vector<T>> Store::get_or_create(const char* key, std::span<const T> default_value) {
+error::Expected<std::vector<T>> Store::get_or_create(const char* key, std::span<const T> fallback_value) {
     size_t required_size;
 
     auto error = nvs_get_blob(m_handle, key, nullptr, &required_size);
     if (error == ESP_ERR_NVS_NOT_FOUND) {
-        TRY(set(key, default_value));
-        return default_value;
+        TRY(set(key, fallback_value));
+        return fallback_value;
     }
 
     TRY_RAW(error);

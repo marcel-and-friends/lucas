@@ -21,25 +21,25 @@ public:
 
     Task(size_t notification_index_do_not_override_default_value = 0);
 
-    Task(Task&& other) noexcept;
+    Task(Task&&) noexcept;
 
-    Task& operator=(Task&& other) noexcept;
+    Task& operator=(Task&&) noexcept;
 
     virtual ~Task();
 
-    // There are no mechanism in FreeRTOS to copy a task
+    // There is no mechanism in FreeRTOS to copy a task
     Task(const Task&) = delete;
     Task& operator=(const Task&) = delete;
 
-    [[nodiscard]] bool create(const char* name, uint32_t stack_size, UBaseType_t priority);
+    [[nodiscard]] bool create(const char* name, uint32_t stack_depth, UBaseType_t priority);
 
-    [[nodiscard]] bool create(uint32_t stack_size, UBaseType_t priority);
+    [[nodiscard]] bool create(uint32_t stack_depth, UBaseType_t priority);
 
 #if ESP_PLATFORM
 
-    [[nodiscard]] bool create_pinned_to_core(const char* name, uint32_t stack_size, UBaseType_t priority, BaseType_t core_id);
+    [[nodiscard]] bool create_pinned_to_core(const char* name, uint32_t stack_depth, UBaseType_t priority, BaseType_t core_id);
 
-    [[nodiscard]] bool create_pinned_to_core(uint32_t stack_size, UBaseType_t priority, BaseType_t core_id);
+    [[nodiscard]] bool create_pinned_to_core(uint32_t stack_depth, UBaseType_t priority, BaseType_t core_id);
 
 #endif
 
@@ -76,7 +76,7 @@ protected:
     [[nodiscard]] time::Tick delay_until(time::Tick previous_wake_time, std::chrono::duration<Rep, Period> increment);
 
     template<typename Rep, typename Period>
-    void every(std::chrono::duration<Rep, Period> period, ControlFlowFn auto&& fn);
+    void every(std::chrono::duration<Rep, Period> period, ControlFlowFn auto&& callback);
 
     static void task(void* raw_self);
 
@@ -117,30 +117,30 @@ Task<Notifications...>::~Task() {
 }
 
 template<std::derived_from<Notification>... Notifications>
-bool Task<Notifications...>::create(const char* name, uint32_t stack_size, UBaseType_t priority) {
+bool Task<Notifications...>::create(const char* name, uint32_t stack_depth, UBaseType_t priority) {
     configASSERT(m_handle == nullptr);
-    bool success = xTaskCreate(task, name, stack_size, this, priority, &m_handle) == pdPASS;
+    bool success = xTaskCreate(task, name, stack_depth, this, priority, &m_handle) == pdPASS;
     if (success) {
     }
     return success;
 }
 
 template<std::derived_from<Notification>... Notifications>
-bool Task<Notifications...>::create(uint32_t stack_size, UBaseType_t priority) {
-    return create(nullptr, stack_size, priority);
+bool Task<Notifications...>::create(uint32_t stack_depth, UBaseType_t priority) {
+    return create(nullptr, stack_depth, priority);
 }
 
 #if ESP_PLATFORM
 
 template<std::derived_from<Notification>... Notifications>
-bool Task<Notifications...>::create_pinned_to_core(const char* name, uint32_t stack_size, UBaseType_t priority, BaseType_t core_id) {
+bool Task<Notifications...>::create_pinned_to_core(const char* name, uint32_t stack_depth, UBaseType_t priority, BaseType_t core_id) {
     configASSERT(m_handle == nullptr);
-    return xTaskCreatePinnedToCore(task, name, stack_size, this, priority, &m_handle, core_id) == pdPASS;
+    return xTaskCreatePinnedToCore(task, name, stack_depth, this, priority, &m_handle, core_id) == pdPASS;
 }
 
 template<std::derived_from<Notification>... Notifications>
-bool Task<Notifications...>::create_pinned_to_core(uint32_t stack_size, UBaseType_t priority, BaseType_t core_id) {
-    return create_pinned_to_core(nullptr, stack_size, priority, core_id);
+bool Task<Notifications...>::create_pinned_to_core(uint32_t stack_depth, UBaseType_t priority, BaseType_t core_id) {
+    return create_pinned_to_core(nullptr, stack_depth, priority, core_id);
 }
 
 #endif
@@ -225,11 +225,11 @@ time::Tick Task<Notifications...>::delay_until(time::Tick previous_wake_time, st
 
 template<std::derived_from<Notification>... Notifications>
 template<typename Rep, typename Period>
-void Task<Notifications...>::every(std::chrono::duration<Rep, Period> period, ControlFlowFn auto&& fn) {
+void Task<Notifications...>::every(std::chrono::duration<Rep, Period> period, ControlFlowFn auto&& callback) {
     auto time = time::now();
     while (true) {
         time = delay_until(time, period);
-        if (std::invoke(fn) == ControlFlow::Break)
+        if (std::invoke(callback) == ControlFlow::Break)
             break;
     }
 }

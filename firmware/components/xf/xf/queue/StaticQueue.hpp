@@ -4,7 +4,6 @@
 
 namespace xf::queue {
 
-// Passing "0" as the size of the queue will make it dynamic
 template<typename Item, size_t SIZE>
 class StaticQueue : public Queue<Item> {
 public:

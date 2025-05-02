@@ -12,16 +12,16 @@ class Master {
 public:
     static error::Expected<Master> make(i2c_master_bus_config_t);
 
-    Master(Master&& other) noexcept;
+    Master(Master&&) noexcept;
 
-    Master& operator=(Master&& other) noexcept;
+    Master& operator=(Master&&) noexcept;
 
     ~Master();
 
     Master(const Master&) = delete;
     Master& operator=(const Master&) = delete;
 
-    void register_device(i2c_master_dev_handle_t device_handle);
+    void register_device(i2c_master_dev_handle_t);
 
     i2c_master_bus_handle_t bus_handle() const;
 

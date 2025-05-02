@@ -33,13 +33,13 @@ error::Expected<void> Store::set(const char* key, std::string_view value) {
     return set(key, std::span { value.data(), value.size() });
 }
 
-error::Expected<std::string> Store::get_or_create(const char* key, std::string_view default_value) {
+error::Expected<std::string> Store::get_or_create(const char* key, std::string_view fallback_value) {
     size_t required_size;
 
     auto error = nvs_get_blob(m_handle, key, nullptr, &required_size);
     if (error == ESP_ERR_NVS_NOT_FOUND) {
-        TRY(set(key, default_value));
-        return std::string(default_value);
+        TRY(set(key, fallback_value));
+        return std::string(fallback_value);
     }
 
     TRY_RAW(error);
