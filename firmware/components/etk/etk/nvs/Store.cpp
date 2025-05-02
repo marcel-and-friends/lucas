@@ -63,6 +63,10 @@ error::Expected<std::string> Store::get(const char* key) {
 
 error::Expected<void> Store::erase(const char* key) {
     TRY_RAW(nvs_erase_key(m_handle, key));
+    return {};
+}
+
+error::Expected<void> Store::commit() {
     TRY_RAW(nvs_commit(m_handle));
     return {};
 }

@@ -69,6 +69,7 @@ private:
 template<typename T>
 error::Expected<PersistentValue<T>> PersistentValue<T>::make(Store& store, const char* key, const auto& default_value) {
     auto cached_value = TRY(store.get_or_create(key, default_value));
+    TRY(store.commit());
     return PersistentValue(store, key, std::move(cached_value));
 }
 
@@ -114,6 +115,7 @@ error::Expected<void> PersistentValue<T>::store(T value) {
     m_cached_value = std::move(value);
 
     TRY(m_store.set(m_key, value));
+    TRY(m_store.commit());
 
     return {};
 }
@@ -126,6 +128,7 @@ const T& PersistentValue<T>::load() const {
 template<typename T>
 error::Expected<PersistentValue<std::optional<T>>> PersistentValue<std::optional<T>>::make(Store& store, const char* key, const auto& default_value) {
     auto cached_value = TRY(store.get_or_create(key, default_value));
+    TRY(store.commit());
     return PersistentValue(store, key, std::move(cached_value));
 }
 
@@ -184,6 +187,8 @@ error::Expected<void> PersistentValue<std::optional<T>>::store(std::optional<T> 
     } else {
         TRY(m_store.erase(m_key));
     }
+
+    TRY(m_store.commit());
 
     return {};
 }

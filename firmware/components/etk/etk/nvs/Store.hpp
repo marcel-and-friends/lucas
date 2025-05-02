@@ -58,6 +58,8 @@ public:
 
     error::Expected<void> erase(const char* key);
 
+    error::Expected<void> commit();
+
 private:
     Store(nvs_handle_t);
 
@@ -76,7 +78,6 @@ template<typename T>
 requires std::is_trivially_copyable_v<T>
 error::Expected<void> Store::set(const char* key, std::span<const T> value) {
     TRY_RAW(nvs_set_blob(m_handle, key, value.data(), value.size_bytes()));
-    TRY_RAW(nvs_commit(m_handle));
     return {};
 }
 
