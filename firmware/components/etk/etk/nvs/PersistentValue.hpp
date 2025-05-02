@@ -11,8 +11,8 @@ class PersistentValue {
 public:
     static error::Expected<PersistentValue> make(Store&, const char* key, const auto& fallback_value);
 
-    PersistentValue(PersistentValue&&);
-    PersistentValue& operator=(PersistentValue&&);
+    PersistentValue(PersistentValue&&) noexcept(std::is_nothrow_move_constructible_v<T>);
+    PersistentValue& operator=(PersistentValue&&) noexcept(std::is_nothrow_move_assignable_v<T>);
 
     PersistentValue(const PersistentValue&) = delete;
     PersistentValue& operator=(const PersistentValue&) = delete;
@@ -42,8 +42,8 @@ public:
 
     static error::Expected<PersistentValue> make(Store&, const char* key);
 
-    PersistentValue(PersistentValue&&);
-    PersistentValue& operator=(PersistentValue&&);
+    PersistentValue(PersistentValue&&) noexcept(std::is_nothrow_move_constructible_v<std::optional<T>>);
+    PersistentValue& operator=(PersistentValue&&) noexcept(std::is_nothrow_move_assignable_v<std::optional<T>>);
 
     PersistentValue(const PersistentValue&) = delete;
     PersistentValue& operator=(const PersistentValue&) = delete;
@@ -74,14 +74,14 @@ error::Expected<PersistentValue<T>> PersistentValue<T>::make(Store& store, const
 }
 
 template<typename T>
-PersistentValue<T>::PersistentValue(PersistentValue&& other)
+PersistentValue<T>::PersistentValue(PersistentValue&& other) noexcept(std::is_nothrow_move_constructible_v<T>)
     : m_store(other.m_store)
     , m_key(std::exchange(other.m_key, nullptr))
     , m_cached_value(std::move(other.m_cached_value)) {
 }
 
 template<typename T>
-PersistentValue<T>& PersistentValue<T>::operator=(PersistentValue&& other) {
+PersistentValue<T>& PersistentValue<T>::operator=(PersistentValue&& other) noexcept(std::is_nothrow_move_assignable_v<T>) {
     if (this != &other) {
         m_store = other.m_store;
         m_key = std::exchange(other.m_key, nullptr);
@@ -142,14 +142,14 @@ error::Expected<PersistentValue<std::optional<T>>> PersistentValue<std::optional
 }
 
 template<typename T>
-PersistentValue<std::optional<T>>::PersistentValue(PersistentValue&& other)
+PersistentValue<std::optional<T>>::PersistentValue(PersistentValue&& other) noexcept(std::is_nothrow_move_constructible_v<std::optional<T>>)
     : m_store(other.m_store)
     , m_key(std::exchange(other.m_key, nullptr))
     , m_cached_value(std::move(other.m_cached_value)) {
 }
 
 template<typename T>
-PersistentValue<std::optional<T>>& PersistentValue<std::optional<T>>::operator=(PersistentValue&& other) {
+PersistentValue<std::optional<T>>& PersistentValue<std::optional<T>>::operator=(PersistentValue&& other) noexcept(std::is_nothrow_move_assignable_v<std::optional<T>>) {
     if (this != &other) {
         m_store = other.m_store;
         m_key = std::exchange(other.m_key, nullptr);
