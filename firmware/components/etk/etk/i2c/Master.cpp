@@ -14,10 +14,6 @@ Master::~Master() {
     MUST(destroy());
 }
 
-Master::Master(i2c_master_bus_handle_t bus_handle)
-    : m_bus_handle(bus_handle) {
-}
-
 Master::Master(Master&& other) noexcept
     : m_bus_handle(std::exchange(other.m_bus_handle, nullptr))
     , m_device_handles(std::exchange(other.m_device_handles, {})) { }
@@ -35,6 +31,14 @@ void Master::register_device(i2c_master_dev_handle_t device_handle) {
     m_device_handles.push_back(device_handle);
 }
 
+i2c_master_bus_handle_t Master::bus_handle() const {
+    return m_bus_handle;
+}
+
+Master::Master(i2c_master_bus_handle_t bus_handle)
+    : m_bus_handle(bus_handle) {
+}
+
 error::Expected<void> Master::destroy() {
     for (auto device_handle : m_device_handles)
         TRY_RAW(i2c_master_bus_rm_device(device_handle));
@@ -43,10 +47,6 @@ error::Expected<void> Master::destroy() {
         TRY_RAW(i2c_del_master_bus(m_bus_handle));
 
     return {};
-}
-
-i2c_master_bus_handle_t Master::bus_handle() const {
-    return m_bus_handle;
 }
 
 }

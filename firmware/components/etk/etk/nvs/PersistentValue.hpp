@@ -91,13 +91,6 @@ PersistentValue<T>& PersistentValue<T>::operator=(PersistentValue&& other) {
 }
 
 template<typename T>
-PersistentValue<T>::PersistentValue(Store& store, const char* key, T cached_value)
-    : m_store(store)
-    , m_key(key)
-    , m_cached_value(std::move(cached_value)) {
-}
-
-template<typename T>
 const T* PersistentValue<T>::operator->() const {
     return &m_cached_value;
 }
@@ -123,6 +116,13 @@ error::Expected<void> PersistentValue<T>::store(T value) {
 template<typename T>
 const T& PersistentValue<T>::load() const {
     return m_cached_value;
+}
+
+template<typename T>
+PersistentValue<T>::PersistentValue(Store& store, const char* key, T cached_value)
+    : m_store(store)
+    , m_key(key)
+    , m_cached_value(std::move(cached_value)) {
 }
 
 template<typename T>
@@ -159,13 +159,6 @@ PersistentValue<std::optional<T>>& PersistentValue<std::optional<T>>::operator=(
 }
 
 template<typename T>
-PersistentValue<std::optional<T>>::PersistentValue(Store& store, const char* key, std::optional<T> cached_value)
-    : m_store(store)
-    , m_key(key)
-    , m_cached_value(std::move(cached_value)) {
-}
-
-template<typename T>
 const std::optional<T>* PersistentValue<std::optional<T>>::operator->() const {
     return &m_cached_value;
 }
@@ -196,6 +189,13 @@ error::Expected<void> PersistentValue<std::optional<T>>::store(std::optional<T> 
 template<typename T>
 const std::optional<T>& PersistentValue<std::optional<T>>::load() const {
     return m_cached_value;
+}
+
+template<typename T>
+PersistentValue<std::optional<T>>::PersistentValue(Store& store, const char* key, std::optional<T> cached_value)
+    : m_store(store)
+    , m_key(key)
+    , m_cached_value(std::move(cached_value)) {
 }
 
 }

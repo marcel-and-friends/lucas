@@ -10,10 +10,6 @@ error::Expected<Store> Store::make(const char* namespace_name, nvs_open_mode_t o
     return Store(handle);
 }
 
-Store::Store(nvs_handle_t handle)
-    : m_handle(handle) {
-}
-
 Store::~Store() {
     destroy();
 }
@@ -69,6 +65,10 @@ error::Expected<void> Store::erase(const char* key) {
 error::Expected<void> Store::commit() {
     TRY_RAW(nvs_commit(m_handle));
     return {};
+}
+
+Store::Store(nvs_handle_t handle)
+    : m_handle(handle) {
 }
 
 void Store::destroy() {
