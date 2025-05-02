@@ -4,7 +4,6 @@
 #include <etk/nvs/PersistentValue.hpp>
 #include <etk/nvs/Store.hpp>
 #include <xf/task/StaticTask.hpp>
-#include <xf/timer/Timer.hpp>
 
 #include "Bridge.hpp"
 #include <heater/Heater.hpp>

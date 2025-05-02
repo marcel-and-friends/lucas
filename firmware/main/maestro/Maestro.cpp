@@ -1,7 +1,3 @@
-#include <nvs_flash.h>
-
-#include <etk/nvs/PersistentValue.hpp>
-
 #include "Maestro.hpp"
 #include <proto/firmware/FirmwareEvent.pb.h>
 #include <util/literals.hpp>

@@ -1,7 +1,5 @@
 #include <cmath>
 
-#include <esp_adc/adc_continuous.h>
-
 #include <etk/gpio/Pin.hpp>
 #include <wxs/match.hpp>
 

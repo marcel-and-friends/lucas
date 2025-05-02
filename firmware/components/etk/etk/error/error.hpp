@@ -2,7 +2,6 @@
 
 #include <expected>
 #include <stdexcept>
-#include <type_traits>
 #include <utility>
 
 #include <esp_err.h>
@@ -61,6 +60,7 @@ void must_failed_print(esp_err_t, const char* file, int line, const char* functi
     } while (false)
 
 #if CONFIG_COMPILER_CXX_EXCEPTIONS
+
 #    define TRY_OR_THROW(expression)                                        \
         ({                                                                  \
             _Pragma("GCC diagnostic ignored \"-Wshadow\"");                 \
@@ -81,6 +81,7 @@ void must_failed_print(esp_err_t, const char* file, int line, const char* functi
             if (_temporary_error_code != ESP_OK) [[unlikely]]         \
                 throw ::etk::error::Exception(_temporary_error_code); \
         } while (false)
+
 #endif
 
 #define MUST(expression)                                                                                                                \

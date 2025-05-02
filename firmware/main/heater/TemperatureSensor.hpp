@@ -2,10 +2,9 @@
 
 #include <expected>
 
-#include <etk/i2c/Master.hpp>
-
 #include <driver/i2c_master.h>
-#include <esp_adc/adc_oneshot.h>
+
+#include <etk/i2c/Master.hpp>
 
 namespace heater {
 

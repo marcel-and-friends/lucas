@@ -1,9 +1,6 @@
 #pragma once
 
-#include <expected>
-
 #include <etk/i2c/Master.hpp>
-#include <xf/task/CountingNotification.hpp>
 #include <xf/task/StaticTask.hpp>
 
 #include "TemperatureSensor.hpp"
