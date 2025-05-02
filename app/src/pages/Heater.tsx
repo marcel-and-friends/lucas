@@ -4,13 +4,13 @@ import HeaterControlForm, {
 import TemperatureChart, {
   GraphPoint,
 } from "@/components/heater/TemperatureChart";
-import useConnection from "@/hooks/useConnection";
+import useBridge from "@/hooks/useBridge";
 import useFirmwareEvent from "@/hooks/useFirmwareEvent";
 import { IonContent } from "@ionic/react";
 import { useState } from "react";
 
 export default function Heater() {
-  const connection = useConnection();
+  const bridge = useBridge();
 
   const [graphData, setGraphData] = useState<GraphPoint[]>([]);
   const [isHeating, setIsHeating] = useState(false);
@@ -35,7 +35,7 @@ export default function Heater() {
       setIsHeating(true);
       setTargetTemperature(params.targetTemperature);
 
-      await connection.sendCommand({
+      await bridge.sendCommand({
         heater_control: {
           start: {
             target_temperature: params.targetTemperature,
@@ -49,7 +49,7 @@ export default function Heater() {
     } else {
       setIsHeating(false);
       setTargetTemperature(undefined);
-      await connection.sendCommand({
+      await bridge.sendCommand({
         heater_control: {
           stop: {},
         },

@@ -1,8 +1,8 @@
 import FullscreenCentered from "@/components/FullscreenCentered";
 import Tab from "@/components/Tab";
-import { LucasConnection, SERVICE_UUID } from "@/lib/LucasConnection";
+import { Bridge, SERVICE_UUID } from "@/lib/Bridge";
 import Heater from "@/pages/Heater";
-import ConnectionContext from "@/stores/ConnectionContext";
+import BridgeContext from "@/stores/BridgeContext";
 import { BleClient } from "@capacitor-community/bluetooth-le";
 import {
   IonApp,
@@ -61,7 +61,7 @@ export default function App() {
           .then((device) =>
             setBluetoothState({
               kind: State.Connected,
-              lucasConnection: new LucasConnection(device),
+              bridge: new Bridge(device),
             }),
           )
           .catch((error) => {
@@ -113,7 +113,7 @@ export default function App() {
       return (
         <StrictMode>
           <IonApp>
-            <ConnectionContext.Provider value={bluetoothState.lucasConnection}>
+            <BridgeContext.Provider value={bluetoothState.bridge}>
               <IonTabs>
                 <Tab tab="heater">
                   <Heater />
@@ -133,7 +133,7 @@ export default function App() {
 
                 <IonTab tab=""></IonTab>
               </IonTabs>
-            </ConnectionContext.Provider>
+            </BridgeContext.Provider>
           </IonApp>
         </StrictMode>
       );
@@ -161,7 +161,7 @@ interface Searching {
 
 interface Connected {
   kind: State.Connected;
-  lucasConnection: LucasConnection;
+  bridge: Bridge;
 }
 
 type BluetoothState =

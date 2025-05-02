@@ -1,16 +1,16 @@
 import { FirmwareEvent } from "#/proto/firmware/FirmwareEvent";
-import useConnection from "@/hooks/useConnection";
+import useBridge from "@/hooks/useBridge";
 import { useEffect } from "react";
 
 export default function useFirmwareEvent<C extends keyof FirmwareEvent>(
   caseStr: C,
   callback: (data: NonNullable<FirmwareEvent[C]>) => void,
 ) {
-  const connection = useConnection();
+  const bridge = useBridge();
   useEffect(() => {
-    const id = connection.subscribe(caseStr, callback);
+    const id = bridge.subscribe(caseStr, callback);
     return () => {
-      connection.unsubscribe(id);
+      bridge.unsubscribe(id);
     };
-  }, [caseStr, callback, connection]);
+  }, [caseStr, callback, bridge]);
 }

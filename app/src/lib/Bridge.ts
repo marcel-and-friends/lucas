@@ -10,7 +10,7 @@ export const SERVICE_UUID = numberToUUID(0xabf0);
 export const SPP_UUID = "5019aa43-e7f5-95be-9a44-8dd43473c349";
 export const STATUS_UUID = "44642abc-6057-f595-1246-fe23279bcf52";
 
-export class LucasConnection {
+export class Bridge {
   private subscriptions: {
     [C in keyof FirmwareEvent]?: Array<
       (event: NonNullable<FirmwareEvent[C]>) => void
