@@ -30,9 +30,7 @@ Store::~Store() {
 }
 
 error::Expected<void> Store::set(const char* key, std::string_view value) {
-    TRY_RAW(nvs_set_blob(m_handle, key, value.data(), value.size()));
-    TRY_RAW(nvs_commit(m_handle));
-    return {};
+    return set(key, std::span { value.data(), value.size() });
 }
 
 error::Expected<std::string> Store::get_or_create(const char* key, std::string_view default_value) {

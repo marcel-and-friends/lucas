@@ -69,15 +69,13 @@ private:
 template<typename T>
 requires std::is_trivially_copyable_v<T>
 error::Expected<void> Store::set(const char* key, const T& value) {
-    TRY_RAW(nvs_set_blob(m_handle, key, &value, sizeof(value)));
-    TRY_RAW(nvs_commit(m_handle));
-    return {};
+    return set(key, std::span { &value, 1 });
 }
 
 template<typename T>
 requires std::is_trivially_copyable_v<T>
 error::Expected<void> Store::set(const char* key, std::span<const T> value) {
-    TRY_RAW(nvs_set_blob(m_handle, key, value.data(), value.size()));
+    TRY_RAW(nvs_set_blob(m_handle, key, value.data(), value.size_bytes()));
     TRY_RAW(nvs_commit(m_handle));
     return {};
 }
