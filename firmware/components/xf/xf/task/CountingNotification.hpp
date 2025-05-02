@@ -10,7 +10,6 @@
 namespace xf::task {
 
 struct CountingNotification : Notification {
-public:
     void give();
 
     [[nodiscard]] uint32_t await_take();

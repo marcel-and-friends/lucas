@@ -12,12 +12,12 @@
 
 namespace xf::task {
 
+using Handle = TaskHandle_t;
+
 template<std::derived_from<Notification>... Notifications>
 class Task {
 public:
     static_assert(sizeof...(Notifications) <= configTASK_NOTIFICATION_ARRAY_ENTRIES, "The number of notifications for a task must be less than or equal to \"configTASK_NOTIFICATION_ARRAY_ENTRIES\"");
-
-    using Handle = TaskHandle_t;
 
     Task(size_t notification_index_do_not_override_default_value = 0);
 
@@ -43,26 +43,25 @@ public:
 
 #endif
 
+    void destroy();
+
     void suspend();
 
     void resume();
 
-    void destroy();
-
     [[nodiscard]] UBaseType_t stack_high_mark() const;
 
     [[nodiscard]] UBaseType_t priority() const;
+
     void set_priority(UBaseType_t);
-
-    [[nodiscard]] Handle raw_handle() const;
-
-    [[nodiscard]] bool is_running() const;
 
     template<size_t I = tskDEFAULT_INDEX_TO_NOTIFY>
     [[nodiscard]] auto& notification();
 
     template<typename Notification>
     [[nodiscard]] auto& notification();
+
+    [[nodiscard]] Handle raw_handle() const;
 
 protected:
     virtual void setup() { }
@@ -146,6 +145,12 @@ bool Task<Notifications...>::create_pinned_to_core(uint32_t stack_depth, UBaseTy
 #endif
 
 template<std::derived_from<Notification>... Notifications>
+void Task<Notifications...>::destroy() {
+    configASSERT(m_handle);
+    vTaskDelete(std::exchange(m_handle, nullptr));
+}
+
+template<std::derived_from<Notification>... Notifications>
 void Task<Notifications...>::suspend() {
     vTaskSuspend(m_handle);
 }
@@ -156,6 +161,11 @@ void Task<Notifications...>::resume() {
 }
 
 template<std::derived_from<Notification>... Notifications>
+UBaseType_t Task<Notifications...>::stack_high_mark() const {
+    return uxTaskGetStackHighWaterMark(m_handle);
+}
+
+template<std::derived_from<Notification>... Notifications>
 UBaseType_t Task<Notifications...>::priority() const {
     return uxTaskPriorityGet(m_handle);
 }
@@ -163,16 +173,6 @@ UBaseType_t Task<Notifications...>::priority() const {
 template<std::derived_from<Notification>... Notifications>
 void Task<Notifications...>::set_priority(UBaseType_t p) {
     vTaskPrioritySet(m_handle, p);
-}
-
-template<std::derived_from<Notification>... Notifications>
-Task<Notifications...>::Handle Task<Notifications...>::raw_handle() const {
-    return m_handle;
-}
-
-template<std::derived_from<Notification>... Notifications>
-bool Task<Notifications...>::is_running() const {
-    return m_handle != nullptr;
 }
 
 template<std::derived_from<Notification>... Notifications>
@@ -188,25 +188,8 @@ auto& Task<Notifications...>::notification() {
 }
 
 template<std::derived_from<Notification>... Notifications>
-void Task<Notifications...>::destroy() {
-    configASSERT(m_handle);
-    vTaskDelete(std::exchange(m_handle, nullptr));
-}
-
-template<std::derived_from<Notification>... Notifications>
-UBaseType_t Task<Notifications...>::stack_high_mark() const {
-    return uxTaskGetStackHighWaterMark(m_handle);
-}
-
-template<std::derived_from<Notification>... Notifications>
-void Task<Notifications...>::task(void* raw_self) {
-    auto& self = *static_cast<Task*>(raw_self);
-
-    self.setup();
-
-    self.run();
-
-    self.destroy();
+Handle Task<Notifications...>::raw_handle() const {
+    return m_handle;
 }
 
 template<std::derived_from<Notification>... Notifications>
@@ -232,6 +215,17 @@ void Task<Notifications...>::every(std::chrono::duration<Rep, Period> period, Co
         if (std::invoke(callback) == ControlFlow::Break)
             break;
     }
+}
+
+template<std::derived_from<Notification>... Notifications>
+void Task<Notifications...>::task(void* raw_self) {
+    auto& self = *static_cast<Task*>(raw_self);
+
+    self.setup();
+
+    self.run();
+
+    self.destroy();
 }
 
 }

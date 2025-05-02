@@ -6,7 +6,6 @@
 namespace xf::task::isr {
 
 struct BinaryNotification : Notification {
-public:
     xf::isr::HigherPriorityTaskWoken set();
 };
 

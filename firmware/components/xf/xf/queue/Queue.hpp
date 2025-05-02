@@ -12,11 +12,11 @@
 
 namespace xf::queue {
 
+using Handle = QueueHandle_t;
+
 template<typename Item>
 class Queue {
 public:
-    using Handle = QueueHandle_t;
-
     // We support non-trivially-copyable items through an indirection backed by a heap allocation
     using StoredItem = std::conditional_t<
         std::is_trivially_copyable_v<Item>,
@@ -81,8 +81,6 @@ public:
 
     void reset();
 
-    [[nodiscard]] Handle raw_handle() const;
-
     [[nodiscard]] size_t messages_waiting() const;
 
     [[nodiscard]] size_t spaces_available() const;
@@ -90,6 +88,8 @@ public:
     [[nodiscard]] bool is_empty() const;
 
     [[nodiscard]] bool is_full() const;
+
+    [[nodiscard]] Handle raw_handle() const;
 
     [[nodiscard]] isr::Queue<Item> for_isr();
 
@@ -251,11 +251,6 @@ void Queue<Item>::reset() {
 }
 
 template<typename Item>
-Queue<Item>::Handle Queue<Item>::raw_handle() const {
-    return m_handle;
-}
-
-template<typename Item>
 size_t Queue<Item>::messages_waiting() const {
     return uxQueueMessagesWaiting(m_handle);
 }
@@ -276,6 +271,16 @@ bool Queue<Item>::is_full() const {
 }
 
 template<typename Item>
+Handle Queue<Item>::raw_handle() const {
+    return m_handle;
+}
+
+template<typename Item>
+isr::Queue<Item> Queue<Item>::for_isr() {
+    return isr::Queue<Item> { m_handle };
+}
+
+template<typename Item>
 template<typename T, typename Rep, typename Period>
 bool Queue<Item>::generic_send(T&& item, BaseType_t copy_position, std::chrono::duration<Rep, Period> timeout) {
     if constexpr (std::is_trivially_copyable_v<Item>) {
@@ -293,11 +298,6 @@ bool Queue<Item>::generic_send(T&& item, BaseType_t copy_position, std::chrono::
             return false;
         }
     }
-}
-
-template<typename Item>
-isr::Queue<Item> Queue<Item>::for_isr() {
-    return isr::Queue<Item> { m_handle };
 }
 
 }

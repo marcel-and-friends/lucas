@@ -10,7 +10,6 @@
 namespace xf::task {
 
 struct BinaryNotification : Notification {
-public:
     void set();
 
     void await_get();

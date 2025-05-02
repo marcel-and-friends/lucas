@@ -7,7 +7,7 @@ namespace xf::queue {
 template<typename Item, size_t SIZE>
 class StaticQueue : public Queue<Item> {
 public:
-    static_assert(SIZE > 0, "Static queue size must be at least 1.");
+    static_assert(SIZE > 0, "Static queue size must be at least 1");
 
     void create() {
         configASSERT(this->m_handle == nullptr);

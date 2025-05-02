@@ -18,12 +18,12 @@ enum class Mode {
     SelfDestructive,
 };
 
+using Handle = TimerHandle_t;
+
 template<typename... Ctx>
 requires(!std::is_reference_v<Ctx> && ...)
 class Timer {
 public:
-    using Handle = TimerHandle_t;
-
     using Callback = void (*)(Ctx&...);
 
     Timer(Mode, Callback, Ctx&...);
@@ -69,7 +69,7 @@ public:
 
     [[nodiscard]] bool is_active() const;
 
-    [[nodiscard]] bool is_valid() const;
+    [[nodiscard]] Handle raw_handle();
 
     [[nodiscard]] isr::Timer<Ctx...> for_isr();
 
@@ -216,8 +216,14 @@ bool Timer<Ctx...>::is_active() const {
 
 template<typename... Ctx>
 requires(!std::is_reference_v<Ctx> && ...)
-bool Timer<Ctx...>::is_valid() const {
-    return m_handle != nullptr;
+Handle Timer<Ctx...>::raw_handle() {
+    return m_handle;
+}
+
+template<typename... Ctx>
+requires(!std::is_reference_v<Ctx> && ...)
+isr::Timer<Ctx...> Timer<Ctx...>::for_isr() {
+    return { m_handle };
 }
 
 template<typename... Ctx>
@@ -229,12 +235,6 @@ void Timer<Ctx...>::callback(TimerHandle_t handle) {
 
     if (self.m_mode == Mode::SelfDestructive)
         self.await_destroy();
-}
-
-template<typename... Ctx>
-requires(!std::is_reference_v<Ctx> && ...)
-isr::Timer<Ctx...> Timer<Ctx...>::for_isr() {
-    return { m_handle };
 }
 
 }

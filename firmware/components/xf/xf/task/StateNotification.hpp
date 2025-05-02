@@ -12,7 +12,6 @@ namespace xf::task {
 
 template<typename T>
 struct StateNotification : Notification {
-public:
     static_assert(sizeof(T) <= sizeof(uint32_t) and std::is_trivially_copyable_v<T>,
         "Type can't be stored in a FreeRTOS notification");
 
