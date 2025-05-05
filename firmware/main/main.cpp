@@ -5,7 +5,7 @@ extern "C" void app_main() {
     try {
         maestro::Maestro::start();
     } catch (const etk::error::Exception& etk_exception) {
-        LOGE("Main", "ESP-IDF exception on start (ec={}, name={})", etk_exception.error(), etk_exception.what());
+        LOGE("Main", "ESP-IDF exception on start (error={:X}, name={})", etk_exception.error(), etk_exception.what());
     } catch (const std::exception& exception) {
         LOGE("Main", "General exception on start (what={})", exception.what());
     }

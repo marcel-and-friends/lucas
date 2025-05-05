@@ -25,7 +25,6 @@ Maestro::Maestro()
       })))
     , m_bridge(m_command_queue, *m_machine_id)
     , m_heater(m_heater_command_queue, m_i2c_master) {
-    assert(s_instance == nullptr);
     s_instance = this;
 }
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 namespace heater::pid {
 
 struct Constants {
@@ -16,7 +18,7 @@ public:
 
     float calculate_output(float error) {
         float proportional = error;
-        float derivative = (error - m_previous_error) / m_constants.Dt;
+        float derivative = m_previous_error ? (error - *m_previous_error) / m_constants.Dt : 0.0f;
         m_integral += error * m_constants.Dt;
 
         m_previous_error = error;
@@ -26,7 +28,7 @@ public:
 
 private:
     float m_integral { 0.0f };
-    float m_previous_error { 0.0f };
+    std::optional<float> m_previous_error;
 
     Constants m_constants;
 };
