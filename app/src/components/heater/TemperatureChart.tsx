@@ -26,7 +26,7 @@ export default function TemperatureChart({
   targetTemperature,
 }: Props) {
   return (
-    <ChartContainer config={chartConfig} className="h-full w-full">
+    <ChartContainer config={chartConfig}>
       <LineChart data={graphData}>
         <CartesianGrid vertical={false} strokeDasharray="3" />
         <ReferenceLine y={targetTemperature} stroke="white" />
