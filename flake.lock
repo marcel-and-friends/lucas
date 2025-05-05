@@ -52,11 +52,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1744661263,
-        "narHash": "sha256-coO1DTjRfIlygSSmj5OeZIcqeTHvYNsAfL5TShZ+Duc=",
+        "lastModified": 1746454267,
+        "narHash": "sha256-JfL2q/Pmt7m17vDog/rYT2kWcXiZ3LdrTAUsGb9dBm4=",
         "owner": "iniw",
         "repo": "nixpkgs-esp-dev",
-        "rev": "5a554b8bb59737b0a1f0aec0545719bf76006ad1",
+        "rev": "fca5703165161acc8fa549c85f296ff668282302",
         "type": "github"
       },
       "original": {

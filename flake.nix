@@ -28,9 +28,17 @@
         pkgs = import nixpkgs { inherit system overlays; };
 
         esp32-toolchain = pkgs.esp-idf-esp32.override {
+          extraPythonPackages = (
+            pythonPackages: with pythonPackages; [
+              # nanopb uses these libraries
+              protobuf
+              grpcio-tools
+            ]
+          );
           toolsToInclude = [
             "esp-clang"
             "xtensa-esp-elf"
+            "esp-rom-elfs"
           ];
         };
 
