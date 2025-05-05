@@ -111,8 +111,8 @@ export default function App() {
       );
     case State.Connected:
       return (
-        <StrictMode>
-          <IonApp>
+        <IonApp>
+          <StrictMode>
             <BridgeContext.Provider value={bluetoothState.bridge}>
               <IonTabs>
                 <Tab tab="heater">
@@ -134,8 +134,8 @@ export default function App() {
                 <IonTab tab=""></IonTab>
               </IonTabs>
             </BridgeContext.Provider>
-          </IonApp>
-        </StrictMode>
+          </StrictMode>
+        </IonApp>
       );
   }
 }

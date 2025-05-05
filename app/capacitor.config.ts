@@ -12,6 +12,12 @@ const config: CapacitorConfig = {
       keystoreAliasPassword: "lucas-cafe",
       releaseType: "APK",
     },
+    adjustMarginsForEdgeToEdge: "auto",
+  },
+  plugins: {
+    Keyboard: {
+      resizeOnFullScreen: true,
+    },
   },
 };
 
