@@ -9,7 +9,7 @@
 
 namespace heater {
 
-static constexpr float steinhart_algorithm(int volts) {
+static constexpr float steinhart_algorithm(float volts) {
     // Constants for the thermistor
     constexpr float R0 = 50000.0f;  // 50kΩ @ 25°C
     constexpr float BETA = 3976.0f; // β25/80
@@ -65,7 +65,7 @@ float TemperatureSensor::read_temperature() const {
 
     LOGI("Sensor", "volts={}", volts);
 
-    return steinhart_algorithm(std::lround(volts));
+    return steinhart_algorithm(volts);
 }
 
 }
