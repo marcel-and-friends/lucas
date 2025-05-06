@@ -2,7 +2,7 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    esp-dev = {
+    nixpkgs-esp-dev = {
       url = "github:iniw/nixpkgs-esp-dev";
       inputs.nixpkgs.follows = "nixpkgs";
     };
@@ -17,27 +17,29 @@
       self,
       nixpkgs,
       flake-utils,
-      esp-dev,
+      nixpkgs-esp-dev,
       android-nixpkgs,
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        overlays = [ (import "${esp-dev}/overlay.nix") ];
+        overlays = [ (import "${nixpkgs-esp-dev}/overlay.nix") ];
 
         pkgs = import nixpkgs { inherit system overlays; };
 
-        esp32-toolchain = pkgs.esp-idf-esp32.override {
+        esp-idf = pkgs.esp-idf-full.override {
           extraPythonPackages = (
-            pythonPackages: with pythonPackages; [
-              # nanopb uses these libraries
-              protobuf
+            # nanopb requires some extra packages in the python environment
+            pythonPkgs: with pythonPkgs; [
               grpcio-tools
+              protobuf
             ]
           );
           toolsToInclude = [
             "esp-clang"
             "xtensa-esp-elf"
+            # Required until https://github.com/espressif/esp-idf/commit/b64ddb18939d06426607a04816e6de881524e87f lands in an ESP-IDF release
+            # See https://github.com/espressif/esp-idf/issues/15035
             "esp-rom-elfs"
           ];
         };
@@ -56,18 +58,16 @@
       {
         devShells.default = pkgs.mkShell {
           nativeBuildInputs = with pkgs; [
-            # firmware
-            esp32-toolchain
-
-            # app
+            # Firmware
+            esp-idf
+            # App
             android-sdk
             jdk
             nodejs_22
             prettierd
-            vtsls
             vscode-langservers-extracted
-
-            # shared
+            vtsls
+            # Shared
             buf
             protobuf
           ];
