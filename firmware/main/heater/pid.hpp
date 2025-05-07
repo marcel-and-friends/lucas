@@ -1,5 +1,6 @@
 #pragma once
 
+#include <format>
 #include <optional>
 
 namespace heater::pid {
@@ -27,10 +28,17 @@ public:
     }
 
 private:
+    Constants m_constants;
+
     float m_integral { 0.0f };
     std::optional<float> m_previous_error;
-
-    Constants m_constants;
 };
 
 }
+
+template<>
+struct std::formatter<heater::pid::Constants> : std::formatter<std::string> {
+    auto format(const heater::pid::Constants& c, format_context& ctx) const {
+        return formatter<std::string>::format(std::format("(Kp={}, Ki={}, Kd={}, Dt={})", c.Kp, c.Ki, c.Kd, c.Dt), ctx);
+    }
+};

@@ -65,8 +65,8 @@ consteval PhaseGroupTable generate_phase_group_table() {
     return table;
 }
 
-constexpr auto AC_PHASE_CYCLE = chrono::round<xf::time::Duration>(FloatSeconds { 1 } / 60);
-constexpr auto PID_DELTA_TIME = AC_PHASE_CYCLE * PHASE_GROUP_SIZE;
+constexpr auto AC_PHASE_INTERVAL = chrono::round<xf::time::Duration>(FloatSeconds { 1 } / 60);
+constexpr auto PID_DELTA_TIME = chrono::duration_cast<FloatSeconds>(AC_PHASE_INTERVAL) * PHASE_GROUP_SIZE;
 constexpr auto PHASE_GROUP_TABLE = generate_phase_group_table();
 
 constexpr const PhaseGroup& find_best_phase_group_for_watts(int watts) {
@@ -102,10 +102,6 @@ public:
         auto state = m_phase_group->states[m_current_state];
         m_current_state = (m_current_state + 1) % PHASE_GROUP_SIZE;
         return state;
-    }
-
-    void reset() {
-        m_current_state = 0;
     }
 
 private:

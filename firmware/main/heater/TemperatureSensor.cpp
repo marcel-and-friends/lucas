@@ -56,16 +56,9 @@ TemperatureSensor::TemperatureSensor(etk::i2c::Master& i2c_master)
 
 float TemperatureSensor::read_temperature() const {
     int16_t conversion = MUST(ads111x::read<ads111x::reg::Conversion>(m_device_handle)).d;
-    assert(conversion >= 0);
-    if (conversion == 0)
-        return 0.0f;
-
     // NOTE: We configure the PGA to give us a range of ~4.096v.
     float volts = 4.096f * (float(conversion) / INT16_MAX);
-
-    LOGI("Sensor", "volts={}", volts);
-
-    return steinhart_algorithm(volts);
+    return steinhart_algorithm(std::clamp(volts, 0.0f, 3.3f));
 }
 
 }

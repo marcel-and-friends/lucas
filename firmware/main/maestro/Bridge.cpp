@@ -26,7 +26,7 @@ struct CharacteristicData {
     uint16_t value_handle;
 };
 
-static CharacteristicData g_spp_characteristic {
+static CharacteristicData g_spp_characteristic = {
     .uuid = BLE_UUID128_INIT(0x49, 0xc3, 0x73, 0x34, 0xd4, 0x8d, 0x44, 0x9a, 0xbe, 0x95, 0xf5, 0xe7, 0x43, 0xaa, 0x19, 0x50),
     .value_handle = 0,
 };
@@ -36,12 +36,11 @@ static constexpr ble_uuid16_t SERVICE_UUID = BLE_UUID16_INIT(0xABF0);
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 #pragma GCC diagnostic push
 
-ble_gatt_svc_def Bridge::ble_gatt[] {
+ble_gatt_svc_def Bridge::ble_gatt[] = {
     {
         .type = BLE_GATT_SVC_TYPE_PRIMARY,
         .uuid = &SERVICE_UUID.u,
         .characteristics = (ble_gatt_chr_def[]) {
-
             {
                 .uuid = &g_spp_characteristic.uuid.u,
                 .access_cb = Bridge::spp_gatt_event_handler,

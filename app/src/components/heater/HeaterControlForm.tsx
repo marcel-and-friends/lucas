@@ -18,11 +18,15 @@ export default function HeaterControlForm({ isHeating, onSubmit }: Props) {
     disabled: isHeating,
     mode: "onChange",
     defaultValues: {
-      targetTemperature: 100,
-      duration: 10,
-      p: 1,
-      i: 1,
-      d: 1,
+      targetTemperature: 94,
+      duration: 15,
+
+      preheatDuration: 1.5,
+      preheatMultiplier: 2.5,
+
+      p: 4,
+      i: 0.75,
+      d: 0.35,
     },
   });
 
@@ -43,6 +47,18 @@ export default function HeaterControlForm({ isHeating, onSubmit }: Props) {
           name="duration"
           label="Duração"
           placeholder="15"
+        />
+        <InputField
+          control={form.control}
+          name="preheatDuration"
+          label="Duração do preheat"
+          placeholder="1"
+        />
+        <InputField
+          control={form.control}
+          name="preheatMultiplier"
+          label="Multiplicador do preheat"
+          placeholder="2"
         />
         <div className="flex gap-2">
           <InputField
@@ -127,6 +143,11 @@ const HeatingParametersSchema = z.object({
     .number()
     .min(1, { message: "Duração deve ser ao menos 1s" })
     .max(180, { message: "Duração deve ser no máximo 180s" }),
+  preheatDuration: z.coerce
+    .number()
+    .min(0, { message: "Duração do preheat deve ser positiva" })
+    .max(60, { message: "Duração do preheaet deve ser no máximo 60s" }),
+  preheatMultiplier: z.coerce.number(),
   p: z.coerce.number(),
   i: z.coerce.number(),
   d: z.coerce.number(),

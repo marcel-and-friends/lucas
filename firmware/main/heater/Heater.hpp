@@ -12,44 +12,43 @@ namespace heater {
 
 namespace state {
 
-struct Idling {
-};
-
-struct PreHeating {
-    int target_temperature;
-    xf::time::Tick start;
-    xf::time::Tick deadline;
-
-    relays::Controller relays_controller {};
-    xf::time::Tick last_report {};
-};
+struct Idling { };
 
 struct Heating {
-    struct PreHeatingStage {
+    struct Stage {
+        xf::time::Tick start;
+        xf::time::Tick deadline;
+
+        relays::Controller relays_controller {};
+        xf::time::Tick last_phase_group_state_change {};
+        bool first_loop { true };
+    };
+
+    struct PreHeatingStage : Stage {
         relays::PhaseGroup phase_group;
     };
 
-    struct HeatingStage {
+    struct HeatingStage : Stage {
         pid::Controller pid;
+        float min_temp { std::numeric_limits<float>::max() };
+        float max_temp { 0.0f };
     };
 
     std::variant<PreHeatingStage, HeatingStage> stage;
-    int target_temperature;
-    xf::time::Duration duration;
     xf::time::Tick start;
-    xf::time::Tick deadline;
 
-    relays::Controller relays_controller {};
     xf::time::Tick last_report {};
-    xf::time::Tick last_phase_group_state_change {};
 
-    float min_temp { std::numeric_limits<float>::max() };
-    float max_temp { 0.0f };
+    HeaterControl_Start parameters;
 };
+
+using State = std::variant<state::Idling, state::Heating>;
 
 }
 
 class Heater final : public xf::task::StaticTask<4096> {
+    void setup() override;
+
     void run() override;
 
 public:
@@ -58,13 +57,11 @@ public:
 private:
     void handle_command(const HeaterControl&);
 
-    float read_temperature() const;
+    void disable_relays();
 
     command::Queue& m_command_queue;
 
-    std::variant<state::Idling, state::Heating> m_state;
-
-    pid::Constants m_pid_constants;
+    state::State m_state;
 
     TemperatureSensor m_temperature_sensor;
 };

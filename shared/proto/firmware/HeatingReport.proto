@@ -1,7 +1,13 @@
 syntax = "proto3";
 
+enum HeatingStage {
+  PreHeating = 0;
+  Heating = 1;
+}
+
 message HeatingReport {
   float temperature = 1;
   float seconds_elapsed = 2;
   bool finished = 3;
+  HeatingStage stage = 4;
 }

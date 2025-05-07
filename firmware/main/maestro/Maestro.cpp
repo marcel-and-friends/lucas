@@ -18,7 +18,7 @@ Maestro::Maestro()
           .glitch_ignore_cnt = 7,
           .intr_priority = 0,
           .trans_queue_depth = 0,
-          .flags {
+          .flags = {
               .enable_internal_pullup = true,
               .allow_pd = false,
           },

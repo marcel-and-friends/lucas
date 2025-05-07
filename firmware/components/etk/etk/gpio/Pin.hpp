@@ -13,7 +13,7 @@ enum class Invert {
 
 class Pin {
 public:
-    constexpr Pin(gpio_num_t pin, gpio_mode_t mode)
+    explicit Pin(gpio_num_t pin, gpio_mode_t mode)
         : m_pin(pin)
         , m_mode(mode) { }
 
@@ -39,7 +39,7 @@ private:
 
 class Output : public Pin {
 public:
-    constexpr Output(gpio_num_t pin, Invert invert = Invert::No)
+    explicit Output(gpio_num_t pin, Invert invert = Invert::No)
         : Pin(pin, GPIO_MODE_OUTPUT)
         , m_invert(invert == Invert::Yes) { }
 
@@ -61,7 +61,7 @@ private:
 
 class AnalogOutput : public Pin {
 public:
-    constexpr AnalogOutput(gpio_num_t pin, Invert invert = Invert::No)
+    explicit AnalogOutput(gpio_num_t pin, Invert invert = Invert::No)
         : Pin(pin, GPIO_MODE_OUTPUT)
         , m_invert(invert == Invert::Yes) { }
 
@@ -92,7 +92,7 @@ class Input : public Pin {
 public:
     using ISR = void (*)();
 
-    constexpr explicit Input(gpio_num_t pin, Invert invert = Invert::No)
+    explicit Input(gpio_num_t pin, Invert invert = Invert::No)
         : Pin(pin, GPIO_MODE_INPUT)
         , m_invert(invert == Invert::Yes) { }
 
@@ -115,7 +115,7 @@ private:
 
 class AnalogInput : public Pin {
 public:
-    constexpr AnalogInput(gpio_num_t pin)
+    explicit AnalogInput(gpio_num_t pin)
         : Pin(pin, GPIO_MODE_INPUT) { }
 
     [[nodiscard]] uint16_t read() {

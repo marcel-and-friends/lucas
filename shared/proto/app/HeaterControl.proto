@@ -4,9 +4,13 @@ message HeaterControl {
   message Start {
     int32 target_temperature = 1;
     int32 duration_ms = 2;
-    float p = 3;
-    float i = 4;
-    float d = 5;
+
+    int32 preheat_duration_ms = 3;
+    float preheat_multiplier = 4;
+
+    float p = 5;
+    float i = 6;
+    float d = 7;
   }
 
   message Stop {}
