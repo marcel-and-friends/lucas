@@ -105,10 +105,10 @@ error::Expected<void> PersistentValue<T>::store(T value) {
     if (m_cached_value == value)
         return {};
 
-    m_cached_value = std::move(value);
-
     TRY(m_store.set(m_key, value));
     TRY(m_store.commit());
+
+    m_cached_value = std::move(value);
 
     return {};
 }
@@ -173,15 +173,15 @@ error::Expected<void> PersistentValue<std::optional<T>>::store(std::optional<T> 
     if (m_cached_value == value)
         return {};
 
-    m_cached_value = std::move(value);
-
-    if (m_cached_value.has_value()) {
-        TRY(m_store.set(m_key, *m_cached_value));
+    if (value.has_value()) {
+        TRY(m_store.set(m_key, value));
     } else {
         TRY(m_store.erase(m_key));
     }
 
     TRY(m_store.commit());
+
+    m_cached_value = std::move(value);
 
     return {};
 }
