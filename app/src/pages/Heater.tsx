@@ -1,3 +1,4 @@
+import { HeatingStage } from "#/proto/firmware/HeatingReport";
 import HeaterControlForm, {
   HeatingParameters,
 } from "@/components/heater/HeaterControlForm";
@@ -20,12 +21,21 @@ export default function Heater() {
   >(undefined);
 
   useFirmwareEvent("heating_report", (event) => {
-    if (event.finished) setIsHeating(false);
+    if (event.stage === HeatingStage.Finished) setIsHeating(false);
     setGraphData((temperatures) => [
       ...temperatures,
       {
-        temperature: event.temperature,
-        seconds_elapsed: event.seconds_elapsed,
+        temperature:
+          event.stage === HeatingStage.PreHeating
+            ? undefined
+            : event.temperature,
+        preheatTemperature:
+          event.stage === HeatingStage.PreHeating
+            ? event.temperature
+            : undefined,
+        pid: event.pid == -1 ? undefined : Math.min(event.pid, 100),
+        watts: (event.watts / 3400) * 100,
+        secondsElapsed: event.seconds_elapsed,
         stage: event.stage,
       },
     ]);
@@ -43,8 +53,8 @@ export default function Heater() {
             target_temperature: params.targetTemperature,
             duration_ms: Math.round(params.duration * 1000),
 
-            preheat_duration_ms: Math.round(params.preheatDuration * 1000),
-            preheat_multiplier: params.preheatMultiplier,
+            preheat_duration_multiplier: params.preheatDurationMultiplier,
+            preheat_power_multiplier: params.preheatPowerMultiplier,
 
             p: params.p,
             i: params.i,
@@ -79,11 +89,11 @@ export default function Heater() {
               bridge.sendCommand({
                 heater_control: {
                   start: {
-                    target_temperature: 100,
+                    target_temperature: 0,
                     duration_ms: 20000,
 
-                    preheat_duration_ms: 0,
-                    preheat_multiplier: 0,
+                    preheat_duration_multiplier: 0,
+                    preheat_power_multiplier: 0,
 
                     p: 0,
                     i: 0,

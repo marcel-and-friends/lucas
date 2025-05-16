@@ -38,7 +38,7 @@ static std::expected<uint16_t, esp_err_t> read_raw(i2c_master_dev_handle_t handl
 std::expected<i2c_master_dev_handle_t, esp_err_t> init(i2c_master_bus_handle_t bus_handle, AddrSelection addr_line, uint32_t scl_frequency) {
     i2c_master_dev_handle_t device_handle;
 
-    i2c_device_config_t device_config {
+    i2c_device_config_t device_config = {
         .dev_addr_length = I2C_ADDR_BIT_LEN_7,
         .device_address = static_cast<uint16_t>(addr_line),
         .scl_speed_hz = scl_frequency,

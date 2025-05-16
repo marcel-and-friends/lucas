@@ -15,12 +15,19 @@ import {
   YAxis,
 } from "recharts";
 import { HeatingStage } from "#/proto/firmware/HeatingReport";
-import { Thermometer } from "lucide-react";
 
 const chartConfig = {
   temperature: {
-    label: "Temperatura",
-    icon: Thermometer,
+    label: "Temperatura (°C)",
+  },
+  preheatTemperature: {
+    label: "Temperatura - preheat (°C)",
+  },
+  pid: {
+    label: "PID (%)",
+  },
+  watts: {
+    label: "Força (%)",
   },
 } satisfies ChartConfig;
 
@@ -44,7 +51,7 @@ export default function TemperatureChart({
         <CartesianGrid vertical={false} strokeDasharray="3" />
         <ReferenceLine y={targetTemperature} stroke="white" />
         <XAxis
-          dataKey="seconds_elapsed"
+          dataKey="secondsElapsed"
           type="number"
           tickFormatter={(tick) => tick.toFixed(2).replace(/\.?0+$/, "")}
           tickCount={graphData.length}
@@ -55,7 +62,12 @@ export default function TemperatureChart({
             position: "insideBottom",
           }}
         />
-        <YAxis domain={[0, 110]} />
+        <YAxis
+          type="number"
+          domain={[20, 100]}
+          allowDecimals={false}
+          tickFormatter={(tick) => tick.toFixed(2).replace(/\.?0+$/, "")}
+        />
         <ChartTooltip
           animationDuration={100}
           content={<ChartTooltipContent hideLabel hideIndicator />}
@@ -102,7 +114,37 @@ export default function TemperatureChart({
           name="Temperatura"
           dataKey="temperature"
           type="monotone"
-          stroke="url(#gradient)"
+          stroke="#8884d8"
+          strokeWidth="3px"
+          isAnimationActive={false}
+          dot={false}
+          activeDot={false}
+        />
+        <Line
+          name="Temperatura (preheat)"
+          dataKey="preheatTemperature"
+          type="monotone"
+          stroke="#f58d42"
+          strokeWidth="3px"
+          isAnimationActive={false}
+          dot={false}
+          activeDot={false}
+        />
+        <Line
+          name="PID"
+          dataKey="pid"
+          type="monotone"
+          stroke="#7dff45"
+          strokeWidth="3px"
+          isAnimationActive={false}
+          dot={false}
+          activeDot={false}
+        />
+        <Line
+          name="Força"
+          dataKey="watts"
+          type="monotone"
+          stroke="#ff5485"
           strokeWidth="3px"
           isAnimationActive={false}
           dot={false}
@@ -119,7 +161,10 @@ interface Props {
 }
 
 export interface GraphPoint {
-  temperature: number;
-  seconds_elapsed: number;
+  temperature: number | undefined;
+  preheatTemperature: number | undefined;
+  pid: number | undefined;
+  watts: number;
+  secondsElapsed: number;
   stage: HeatingStage;
 }

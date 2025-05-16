@@ -14,8 +14,9 @@ struct Constants {
 
 class Controller {
 public:
-    Controller(const Constants& constants)
-        : m_constants(constants) { }
+    Controller(const Constants& constants, float initial_integral = 0.0f)
+        : m_constants(constants)
+        , m_integral(initial_integral) { }
 
     float calculate_output(float error) {
         float proportional = error;
@@ -25,6 +26,10 @@ public:
         m_previous_error = error;
 
         return m_constants.Kp * proportional + m_constants.Ki * m_integral + m_constants.Kd * derivative;
+    }
+
+    float integral() {
+        return m_integral;
     }
 
 private:

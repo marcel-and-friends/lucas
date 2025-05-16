@@ -90,23 +90,37 @@ constexpr const PhaseGroup& find_best_phase_group_for_watts(int watts) {
 
 class Controller {
 public:
+    struct ControlInfo {
+        float pid;
+        const PhaseGroup& phase_group;
+    };
+
     bool needs_new_phase_group() const {
         return m_current_state == 0;
     }
 
-    void set_phase_group(const PhaseGroup& phase_group) {
-        m_phase_group = &phase_group;
+    void set_control_info(const ControlInfo& info) {
+        m_phase_group = &info.phase_group;
+        m_pid = info.pid;
+    }
+
+    ControlInfo control_info() const {
+        return {
+            .pid = m_pid,
+            .phase_group = *m_phase_group,
+        };
     }
 
     State next_phase_group_state() {
         auto state = m_phase_group->states[m_current_state];
-        m_current_state = (m_current_state + 1) % PHASE_GROUP_SIZE;
+        m_current_state = (m_current_state + 1) % m_phase_group->states.size();
         return state;
     }
 
 private:
     size_t m_current_state { 0 };
     const PhaseGroup* m_phase_group { nullptr };
+    float m_pid { 0 };
 };
 
 }

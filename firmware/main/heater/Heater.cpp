@@ -11,8 +11,7 @@
 
 namespace heater {
 
-static auto RELAYS = std::array {
-    // Onboard LED connection on the devkit
+static auto HEATER_RELAYS = std::array {
     etk::gpio::Output { GPIO_NUM_26 },
     etk::gpio::Output { GPIO_NUM_27 },
 };
@@ -20,7 +19,7 @@ static auto RELAYS = std::array {
 static auto WATER_RELAY = etk::gpio::Output { GPIO_NUM_16 };
 
 static constexpr int percent_to_watts(float percent) {
-    return std::lround(std::clamp(percent, 0.0f, 100.0f) * relays::TOTAL_WATTAGE / 100.0f);
+    return std::lround(percent / 100.0f * relays::TOTAL_WATTAGE);
 }
 
 static constexpr bool check_interval(xf::time::Tick& last_tick, xf::time::Duration interval, xf::time::Tick start) {
@@ -37,7 +36,7 @@ Heater::Heater(command::Queue& command_queue, etk::i2c::Master& i2c_master)
 }
 
 void Heater::setup() {
-    for (auto& relay : RELAYS)
+    for (auto& relay : HEATER_RELAYS)
         relay.setup();
 
     WATER_RELAY.setup();
@@ -57,7 +56,8 @@ void Heater::run() {
             },
             [&](state::Heating& heating) {
                 wxs::visit(heating.stage, [&](state::Heating::Stage& stage) {
-                    auto start = std::exchange(stage.first_loop, false) ? stage.start : xf::time::now();
+                    auto started_stage = std::exchange(stage.first_loop, false);
+                    auto start = started_stage ? stage.start : xf::time::now();
 
                     bool finished_stage = start >= stage.deadline;
                     bool is_preheating = std::holds_alternative<state::Heating::PreHeatingStage>(heating.stage);
@@ -69,15 +69,35 @@ void Heater::run() {
                         return *temperature;
                     };
 
-                    if (check_interval(heating.last_report, REPORT_INTERVAL, start) or finished_heating) {
+                    if (stage.relays_controller.needs_new_phase_group()) {
+                        const auto& [phase_group, pid] = wxs::match(
+                            heating.stage,
+                            [](state::Heating::PreHeatingStage& stage) -> std::tuple<const relays::PhaseGroup&, float> {
+                                return { *stage.phase_group, -1.0f };
+                            },
+                            [&](state::Heating::HeatingStage& stage) -> std::tuple<const relays::PhaseGroup&, float> {
+                                float pid_output = stage.pid.calculate_output(heating.parameters.target_temperature - temperature());
+                                int watts = percent_to_watts(pid_output);
+                                return { relays::find_best_phase_group_for_watts(watts), pid_output };
+                            });
+
+                        stage.relays_controller.set_control_info({
+                            .pid = pid,
+                            .phase_group = phase_group,
+                        });
+                    }
+
+                    if (check_interval(heating.last_report, REPORT_INTERVAL, start) or finished_stage or started_stage) {
                         float seconds_elapsed = chrono::duration_cast<FloatSeconds>(start - heating.start).count();
                         maestro::send_event({
                             .which_tag = FirmwareEvent_heating_report_tag,
                             .heating_report = {
                                 .temperature = temperature(),
+                                .pid = stage.relays_controller.control_info().pid,
+                                .watts = stage.relays_controller.control_info().phase_group.average_watts,
                                 .seconds_elapsed = seconds_elapsed,
-                                .finished = finished_heating,
-                                .stage = is_preheating ? HeatingStage_PreHeating : HeatingStage_Heating,
+                                .stage = finished_heating ? HeatingStage_Finished : is_preheating ? HeatingStage_PreHeating
+                                                                                                  : HeatingStage_Heating,
                             },
                         });
                     }
@@ -86,56 +106,53 @@ void Heater::run() {
                         wxs::match(
                             heating.stage,
                             [&](state::Heating::PreHeatingStage&) {
+                                float initial_integral = m_last_heating_info.transform([&](auto& info) { return info.last_integral * (temperature() / info.last_temperature); }).value_or(0.0f);
+                                LOGI("Heater", "Reusing last heating info (integral={})", initial_integral);
+
                                 heating.stage = state::Heating::HeatingStage {
                                     {
                                         .start = start,
                                         .deadline = start + xf::time::Duration { heating.parameters.duration_ms },
                                     },
-                                    pid::Controller(pid::Constants {
-                                        .Kp = heating.parameters.p,
-                                        .Ki = heating.parameters.i,
-                                        .Kd = heating.parameters.d,
-                                        .Dt = relays::PID_DELTA_TIME.count(),
-                                    }),
+                                    pid::Controller(
+                                        pid::Constants {
+                                            .Kp = heating.parameters.p,
+                                            .Ki = heating.parameters.i,
+                                            .Kd = heating.parameters.d,
+                                            .Dt = relays::PID_DELTA_TIME.count(),
+                                        },
+                                        initial_integral),
                                 };
 
                                 WATER_RELAY.enable();
                             },
                             [&](state::Heating::HeatingStage& stage) {
-                                LOGI("Heater", "Heating finished (min={}, max={})", stage.min_temp, stage.max_temp);
+                                // HACK: Do proper non-heating pour functionality
+                                if (heating.parameters.target_temperature)
+                                    m_last_heating_info = LastHeatingInfo {
+                                        .last_temperature = temperature(),
+                                        .last_integral = stage.pid.integral(),
+                                    };
+
+                                LOGI("Heater", "Saving heating info (integral={})", stage.pid.integral());
+
                                 m_state = state::Idling {};
-                                disable_relays();
+
+                                for (auto& relay : HEATER_RELAYS)
+                                    relay.disable();
+
+                                delay(300ms);
+
+                                WATER_RELAY.disable();
                             });
 
                         return;
                     }
 
-                    if (stage.relays_controller.needs_new_phase_group()) {
-                        const auto& phase_group = wxs::match(
-                            heating.stage,
-                            [](state::Heating::PreHeatingStage& stage) {
-                                return stage.phase_group;
-                            },
-                            [&](state::Heating::HeatingStage& stage) {
-                                float output = stage.pid.calculate_output(heating.parameters.target_temperature - temperature());
-                                int watts = percent_to_watts(output);
-
-                                if (temperature() > stage.max_temp)
-                                    stage.max_temp = temperature();
-
-                                if (temperature() < stage.min_temp)
-                                    stage.min_temp = temperature();
-
-                                return relays::find_best_phase_group_for_watts(watts);
-                            });
-
-                        stage.relays_controller.set_phase_group(phase_group);
-                    }
-
                     if (check_interval(stage.last_phase_group_state_change, relays::AC_PHASE_INTERVAL, start)) {
                         auto relays_state = stage.relays_controller.next_phase_group_state();
-                        RELAYS[0].set(relays_state.active_relays & relays::Weak);
-                        RELAYS[1].set(relays_state.active_relays & relays::Strong);
+                        HEATER_RELAYS[0].set(relays_state.active_relays & relays::Weak);
+                        HEATER_RELAYS[1].set(relays_state.active_relays & relays::Strong);
                     }
 
                     auto end = xf::time::now();
@@ -155,24 +172,29 @@ void Heater::handle_command(const HeaterControl& command) {
     switch (command.which_tag) {
     case HeaterControl_start_tag: {
         float delta = command.start.target_temperature - m_temperature_sensor.read_temperature();
-        float scaled_delta = delta * command.start.preheat_multiplier;
-        int watts = percent_to_watts(scaled_delta);
+
+        int preheat_duration = std::max(std::lround(delta * command.start.preheat_duration_multiplier), 500l);
+        float preheat_power = std::max(delta * command.start.preheat_power_multiplier, 30.0f);
+
+        // HACK: Do proper non-heating pour functionality
+        if (command.start.target_temperature == 0) {
+            m_last_heating_info = std::nullopt;
+            preheat_duration = 0;
+            preheat_power = 0.0f;
+        }
 
         auto start = xf::time::now();
-
         m_state = state::Heating {
             .stage = state::Heating::PreHeatingStage {
                 {
                     .start = start,
-                    .deadline = start + xf::time::Duration { command.start.preheat_duration_ms },
+                    .deadline = start + xf::time::Duration { preheat_duration },
                 },
-                relays::find_best_phase_group_for_watts(watts),
+                &relays::find_best_phase_group_for_watts(percent_to_watts(preheat_power)),
             },
             .start = start,
             .parameters = command.start,
         };
-
-        LOGI("Heater", "Heating (target={})", command.start.target_temperature);
     } break;
     case HeaterControl_stop_tag:
         m_state = state::Idling {};
@@ -186,7 +208,7 @@ void Heater::handle_command(const HeaterControl& command) {
 
 void Heater::disable_relays() {
     WATER_RELAY.disable();
-    for (auto& relay : RELAYS)
+    for (auto& relay : HEATER_RELAYS)
         relay.disable();
 }
 

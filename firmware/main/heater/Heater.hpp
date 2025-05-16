@@ -25,13 +25,12 @@ struct Heating {
     };
 
     struct PreHeatingStage : Stage {
-        relays::PhaseGroup phase_group;
+        // This is a pointer instead of reference to not implicitly-delete the std::variant's default copy ctor and allow state transitions
+        const relays::PhaseGroup* phase_group;
     };
 
     struct HeatingStage : Stage {
         pid::Controller pid;
-        float min_temp { std::numeric_limits<float>::max() };
-        float max_temp { 0.0f };
     };
 
     std::variant<PreHeatingStage, HeatingStage> stage;
@@ -64,6 +63,13 @@ private:
     state::State m_state;
 
     TemperatureSensor m_temperature_sensor;
+
+    struct LastHeatingInfo {
+        float last_temperature { 0.0f };
+        float last_integral { 0.0f };
+    };
+
+    std::optional<LastHeatingInfo> m_last_heating_info;
 };
 
 }

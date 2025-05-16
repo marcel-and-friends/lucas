@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import useFormPersist from "react-hook-form-persist";
 import {
   Form,
   FormControl,
@@ -17,17 +18,12 @@ export default function HeaterControlForm({ isHeating, onSubmit }: Props) {
     resolver: zodResolver(HeatingParametersSchema),
     disabled: isHeating,
     mode: "onChange",
-    defaultValues: {
-      targetTemperature: 94,
-      duration: 15,
+  });
 
-      preheatDuration: 1.5,
-      preheatMultiplier: 2.5,
-
-      p: 4,
-      i: 0.75,
-      d: 0.35,
-    },
+  useFormPersist("HeaterControlForm", {
+    watch: form.watch,
+    setValue: form.setValue,
+    storage: window.localStorage,
   });
 
   return (
@@ -50,14 +46,14 @@ export default function HeaterControlForm({ isHeating, onSubmit }: Props) {
         />
         <InputField
           control={form.control}
-          name="preheatDuration"
-          label="Duração do preheat"
-          placeholder="1"
+          name="preheatDurationMultiplier"
+          label="Multiplicador de tempo do preheat"
+          placeholder="30"
         />
         <InputField
           control={form.control}
-          name="preheatMultiplier"
-          label="Multiplicador do preheat"
+          name="preheatPowerMultiplier"
+          label="Multiplicador de força do preheat"
           placeholder="2"
         />
         <div className="flex gap-2">
@@ -139,15 +135,15 @@ const HeatingParametersSchema = z.object({
     .number()
     .min(1, { message: "Temperatura deve ser ao menos 1°C" })
     .max(100, { message: "Temperatura deve ser no máximo 100°C" }),
+
   duration: z.coerce
     .number()
     .min(1, { message: "Duração deve ser ao menos 1s" })
     .max(180, { message: "Duração deve ser no máximo 180s" }),
-  preheatDuration: z.coerce
-    .number()
-    .min(0, { message: "Duração do preheat deve ser positiva" })
-    .max(60, { message: "Duração do preheaet deve ser no máximo 60s" }),
-  preheatMultiplier: z.coerce.number(),
+
+  preheatDurationMultiplier: z.coerce.number(),
+  preheatPowerMultiplier: z.coerce.number(),
+
   p: z.coerce.number(),
   i: z.coerce.number(),
   d: z.coerce.number(),

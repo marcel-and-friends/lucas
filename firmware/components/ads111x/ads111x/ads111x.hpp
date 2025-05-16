@@ -2,6 +2,12 @@
 
 #pragma once
 
+#include <sdkconfig.h>
+
+#if !defined(CONFIG_I2C_ENABLE_SLAVE_DRIVER_VERSION_2) || CONFIG_I2C_ENABLE_SLAVE_DRIVER_VERSION_2 == 0
+#    error "This component requires v2 of ESP-IDF's I2C driver to be enabled. Add `CONFIG_I2C_ENABLE_SLAVE_DRIVER_VERSION_2=y` to your sdkconfig."
+#endif
+
 #include <expected>
 
 #include <driver/i2c_master.h>
@@ -15,7 +21,7 @@ namespace reg {
 /// All four registers are accessed by writing to the Address Pointer register
 struct [[gnu::packed]] AddressPointer {
     /// Register address pointer
-    enum class Register {
+    enum class Register : unsigned {
         /// Conversion register
         Conversion = 0b00,
         /// Config register
@@ -41,7 +47,7 @@ struct Conversion {
     int16_t d = 0x0000;
 };
 
-static_assert(sizeof(Conversion) == 2);
+static_assert(sizeof(Conversion) == sizeof(uint16_t));
 
 /// Config Register (P[1:0] = 01b) [reset = 8583h]
 ///
