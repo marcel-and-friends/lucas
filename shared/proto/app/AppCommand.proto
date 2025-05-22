@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-import "proto/app/HeaterControl.proto";
+import "proto/app/heater/HeaterControl.proto";
 
 message AppCommand {
   oneof tag {

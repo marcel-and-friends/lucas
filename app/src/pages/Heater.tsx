@@ -1,4 +1,4 @@
-import { HeatingStage } from "#/proto/firmware/HeatingReport";
+import { HeatingStage } from "#/proto/firmware/heater/HeatingReport";
 import HeaterControlForm, {
   HeatingParameters,
 } from "@/components/heater/HeaterControlForm";

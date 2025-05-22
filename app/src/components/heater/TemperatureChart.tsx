@@ -14,7 +14,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { HeatingStage } from "#/proto/firmware/HeatingReport";
+import { HeatingStage } from "#/proto/firmware/heater/HeatingReport";
 
 const chartConfig = {
   temperature: {

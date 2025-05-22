@@ -2,7 +2,7 @@
 
 #include <xf/queue/StaticQueue.hpp>
 
-#include <proto/app/HeaterControl.pb.h>
+#include <proto/app/heater/HeaterControl.pb.h>
 
 namespace heater::command {
 
