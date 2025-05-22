@@ -21,7 +21,7 @@ const chartConfig = {
     label: "Temperatura (°C)",
   },
   preheatTemperature: {
-    label: "Temperatura - preheat (°C)",
+    label: "Temperatura no preheat (°C)",
   },
   pid: {
     label: "PID (%)",
@@ -31,10 +31,7 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export default function TemperatureChart({
-  graphData,
-  targetTemperature,
-}: Props) {
+export default function HeatingChart({ graphData, targetTemperature }: Props) {
   const firstHeating = graphData.findIndex(
     (d) => d.stage == HeatingStage.Heating,
   );
@@ -114,7 +111,7 @@ export default function TemperatureChart({
           activeDot={false}
         />
         <Line
-          name="Temperatura (preheat)"
+          name="Temperatura"
           dataKey="preheatTemperature"
           type="monotone"
           stroke="#f58d42"

@@ -2,9 +2,7 @@ import { HeatingStage } from "#/proto/firmware/heater/HeatingReport";
 import HeaterControlForm, {
   HeatingParameters,
 } from "@/components/heater/HeaterControlForm";
-import TemperatureChart, {
-  GraphPoint,
-} from "@/components/heater/TemperatureChart";
+import HeatingChart, { GraphPoint } from "@/components/heater/HeatingChart";
 import { Button } from "@/components/ui/button";
 import useBridge from "@/hooks/useBridge";
 import useFirmwareEvent from "@/hooks/useFirmwareEvent";
@@ -76,7 +74,7 @@ export default function Heater() {
     <IonContent>
       <div className="flex h-full w-full flex-col items-center justify-center gap-10 p-3 md:flex-row">
         <div className="flex-5">
-          <TemperatureChart
+          <HeatingChart
             graphData={graphData}
             targetTemperature={targetTemperature}
           />
