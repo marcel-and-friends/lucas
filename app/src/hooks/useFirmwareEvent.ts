@@ -8,9 +8,9 @@ export default function useFirmwareEvent<C extends keyof FirmwareEvent>(
 ) {
   const bridge = useBridge();
   useEffect(() => {
-    const id = bridge.subscribe(caseStr, callback);
+    bridge.subscribe(caseStr, callback);
     return () => {
-      bridge.unsubscribe(id);
+      bridge.unsubscribe(caseStr);
     };
   }, [caseStr, callback, bridge]);
 }

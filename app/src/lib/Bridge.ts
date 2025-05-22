@@ -12,9 +12,7 @@ export const STATUS_UUID = "44642abc-6057-f595-1246-fe23279bcf52";
 
 export class Bridge {
   private subscriptions: {
-    [C in keyof FirmwareEvent]?: Array<
-      (event: NonNullable<FirmwareEvent[C]>) => void
-    >;
+    [C in keyof FirmwareEvent]: (event: NonNullable<FirmwareEvent[C]>) => void;
   } = {};
 
   private readonly device: BleDevice;
@@ -32,10 +30,8 @@ export class Bridge {
           const typed_field = field as keyof FirmwareEvent;
           const typed_value = value as FirmwareEvent[typeof typed_field];
           if (typed_value !== undefined) {
-            this.subscriptions[typed_field]?.forEach((cb) =>
-              // @ts-expect-error: I don't think there's a way to make tsc happy about this but it's sound.
-              cb(typed_value),
-            );
+            // @ts-expect-error: I don't think there's a way to make tsc happy about this but it's sound.
+            this.subscriptions[typed_field]?.(typed_value);
             break;
           }
         }
@@ -50,14 +46,13 @@ export class Bridge {
   subscribe<C extends keyof FirmwareEvent>(
     caseStr: C,
     callback: (event: NonNullable<FirmwareEvent[C]>) => void,
-  ): SubscriptionId {
-    if (!this.subscriptions[caseStr]) this.subscriptions[caseStr] = [];
-    this.subscriptions[caseStr].push(callback);
-    return { caseStr, index: this.subscriptions[caseStr].length - 1 };
+  ) {
+    // @ts-expect-error: I don't think there's a way to make tsc happy about this but it's sound.
+    this.subscriptions[caseStr] = callback;
   }
 
-  unsubscribe(id: SubscriptionId) {
-    this.subscriptions[id.caseStr]?.splice(id.index, 1);
+  unsubscribe<C extends keyof FirmwareEvent>(caseStr: C) {
+    this.subscriptions[caseStr] = undefined;
   }
 
   sendCommand(command: AppCommand) {
@@ -69,9 +64,4 @@ export class Bridge {
       new DataView(bytes.buffer),
     );
   }
-}
-
-interface SubscriptionId {
-  caseStr: keyof FirmwareEvent;
-  index: number;
 }
