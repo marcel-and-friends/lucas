@@ -25,8 +25,7 @@ struct Heating {
     };
 
     struct PreHeatingStage : Stage {
-        // This is a pointer instead of reference to not implicitly-delete the std::variant's default copy ctor and allow state transitions
-        const relays::PhaseGroup* phase_group;
+        relays::ControlData control_data;
     };
 
     struct HeatingStage : Stage {
@@ -36,9 +35,14 @@ struct Heating {
     std::variant<PreHeatingStage, HeatingStage> stage;
     xf::time::Tick start;
 
-    xf::time::Tick last_report {};
-
     HeaterControl_Start parameters;
+
+    struct ControlInfo {
+        relays::ControlData control_data;
+        std::optional<float> pid;
+    } active_control_info {};
+
+    xf::time::Tick last_report {};
 };
 
 using State = std::variant<state::Idling, state::Heating>;

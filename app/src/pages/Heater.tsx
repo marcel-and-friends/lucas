@@ -34,7 +34,7 @@ export default function Heater() {
             ? event.temperature
             : undefined,
         pid: event.pid == -1 ? undefined : Math.min(event.pid, 100),
-        watts: (event.watts / 3400) * 100,
+        power: event.power,
         secondsElapsed: event.seconds_elapsed,
         stage: event.stage,
       },

@@ -9,23 +9,18 @@
 
 namespace heater {
 
-static constexpr float steinhart_algorithm(float volts) {
-    // Constants for the thermistor
-    constexpr float R0 = 50000.0f;  // 50kΩ @ 25°C
-    constexpr float BETA = 3976.0f; // β25/80
-    constexpr float T0 = 298.15f;   // 25°C in Kelvin
+constexpr float VREF = 3.3f;
 
-    // Voltage divider setup
-    constexpr float VIN = 3.3f;    // Supply voltage in volts
-    constexpr float RS = 10000.0f; // Series resistor in ohms
+static constexpr float steinhart_formula(float volts) {
+    // Steinhart-Hart constants and circuit taken from ferro techniek's "Ntc temperature readout and NTC Table rev6"
+    constexpr double A = 9.66475227118302e-4;
+    constexpr double B = 2.00488995949766e-4;
+    constexpr double D = 1.67581403147716e-7;
+    constexpr double RS = 12000.0;
 
-    float rth = RS * volts / (VIN - volts);
-
-    // Beta equation: T = 1 / (1/T0 + (1/β) * ln(R/R0))
-    float inverse = (1.0f / T0) + (1.0f / BETA) * std::log(rth / R0);
-    float temperature_kelvin = 1.0f / inverse;
-
-    return temperature_kelvin - 273.15f;
+    double resistance = (RS * volts) / (VREF - volts);
+    double log = std::log(resistance);
+    return 1.0 / (A + B * log + D * std::pow(log, 3)) - 273.15;
 }
 
 TemperatureSensor::TemperatureSensor(etk::i2c::Master& i2c_master)
@@ -57,8 +52,8 @@ TemperatureSensor::TemperatureSensor(etk::i2c::Master& i2c_master)
 float TemperatureSensor::read_temperature() const {
     int16_t conversion = MUST(ads111x::read<ads111x::reg::Conversion>(m_device_handle)).d;
     // NOTE: We configure the PGA to give us a range of ~4.096v.
-    float volts = 4.096f * (float(conversion) / INT16_MAX);
-    return steinhart_algorithm(std::clamp(volts, 0.0f, 3.3f));
+    float volts = std::clamp(4.096f * (float(conversion) / INT16_MAX), 0.0f, VREF);
+    return steinhart_formula(volts);
 }
 
 }

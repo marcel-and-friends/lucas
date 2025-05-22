@@ -9,7 +9,7 @@ enum HeatingStage {
 message HeatingReport {
   float temperature = 1;
   float pid = 2;
-  int32 watts = 3;
+  float power = 3;
   float seconds_elapsed = 4;
   HeatingStage stage = 5;
 }

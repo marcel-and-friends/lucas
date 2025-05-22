@@ -26,7 +26,7 @@ const chartConfig = {
   pid: {
     label: "PID (%)",
   },
-  watts: {
+  power: {
     label: "Força (%)",
   },
 } satisfies ChartConfig;
@@ -73,43 +73,6 @@ export default function TemperatureChart({
           content={<ChartTooltipContent hideLabel hideIndicator />}
         />
         <ChartLegend verticalAlign="top" content={<ChartLegendContent />} />
-        <defs>
-          <linearGradient id="gradient" x1="0" y1="0" x2="100%" y2="0">
-            {(() => {
-              switch (heatingPercentage) {
-                case 0:
-                  return (
-                    <>
-                      <stop offset="0%" stopColor="#f58d42" />
-                      <stop offset="100%" stopColor="#f58d42" />
-                    </>
-                  );
-                case 100:
-                  return (
-                    <>
-                      <stop offset="0%" stopColor="#8884d8" />
-                      <stop offset="100%" stopColor="#8884d8" />
-                    </>
-                  );
-                default:
-                  return (
-                    <>
-                      <stop offset="0%" stopColor="#f58d42" />
-                      <stop
-                        offset={`${100 - heatingPercentage}%`}
-                        stopColor="#f58d42"
-                      />
-                      <stop
-                        offset={`${100 - heatingPercentage}%`}
-                        stopColor="#8884d8"
-                      />
-                      <stop offset="100%" stopColor="#8884d8" />
-                    </>
-                  );
-              }
-            })()}
-          </linearGradient>
-        </defs>
         <Line
           name="Temperatura"
           dataKey="temperature"
@@ -142,7 +105,7 @@ export default function TemperatureChart({
         />
         <Line
           name="Força"
-          dataKey="watts"
+          dataKey="power"
           type="monotone"
           stroke="#ff5485"
           strokeWidth="3px"
@@ -164,7 +127,7 @@ export interface GraphPoint {
   temperature: number | undefined;
   preheatTemperature: number | undefined;
   pid: number | undefined;
-  watts: number;
+  power: number;
   secondsElapsed: number;
   stage: HeatingStage;
 }
