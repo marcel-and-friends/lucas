@@ -45,6 +45,8 @@ export default function TemperatureChart({
       ((graphData.length - firstHeating) * 100) / (graphData.length - 1);
   }
 
+  const tickFormatter = (tick: number) => tick.toFixed(2).replace(/\.?0+$/, "");
+
   return (
     <ChartContainer config={chartConfig}>
       <LineChart data={graphData}>
@@ -53,12 +55,12 @@ export default function TemperatureChart({
         <XAxis
           dataKey="secondsElapsed"
           type="number"
-          tickFormatter={(tick) => tick.toFixed(2).replace(/\.?0+$/, "")}
+          tickFormatter={tickFormatter}
           tickCount={graphData.length}
           allowDecimals={false}
           domain={[0, "dataMax"]}
           label={{
-            value: "Tempo",
+            value: "Tempo (s)",
             position: "insideBottom",
           }}
         />
@@ -66,7 +68,7 @@ export default function TemperatureChart({
           type="number"
           domain={[20, 100]}
           allowDecimals={false}
-          tickFormatter={(tick) => tick.toFixed(2).replace(/\.?0+$/, "")}
+          tickFormatter={tickFormatter}
         />
         <ChartTooltip
           animationDuration={100}
