@@ -72,7 +72,35 @@ export default function TemperatureChart({
         />
         <ChartTooltip
           animationDuration={100}
-          content={<ChartTooltipContent hideLabel hideIndicator />}
+          content={
+            <ChartTooltipContent
+              hideLabel
+              formatter={(value, name, item) => (
+                <>
+                  {chartConfig[name as keyof typeof chartConfig]?.label || name}
+                  <div className="ml-auto flex items-baseline gap-0.5 font-mono font-medium text-foreground tabular-nums">
+                    {tickFormatter(Number(value))}
+                    <span className="font-normal text-muted-foreground">
+                      {name === "Temperatura" ? "°C" : "%"}
+                    </span>
+                  </div>
+                  {name === "Força" && (
+                    <div className="flex basis-full items-center border-t pt-1.5 text-xs font-medium text-foreground">
+                      Tempo
+                      {item.payload && (
+                        <div className="ml-auto flex items-baseline gap-0.5 font-mono font-medium text-foreground tabular-nums">
+                          {tickFormatter(item.payload.secondsElapsed)}
+                          <span className="font-normal text-muted-foreground">
+                            s
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            />
+          }
         />
         <ChartLegend verticalAlign="top" content={<ChartLegendContent />} />
         <Line
