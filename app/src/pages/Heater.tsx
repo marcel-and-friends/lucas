@@ -79,9 +79,10 @@ export default function Heater() {
             targetTemperature={targetTemperature}
           />
         </div>
-        <div className="flex-1">
+        <div className="flex flex-1 flex-col gap-1.5">
           <HeaterControlForm isHeating={isHeating} onSubmit={onSubmit} />
           <Button
+            disabled={isHeating}
             onClick={() => {
               setGraphData([]);
               bridge.sendCommand({
