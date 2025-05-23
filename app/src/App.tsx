@@ -1,5 +1,6 @@
 import FullscreenCentered from "@/components/FullscreenCentered";
 import Tab from "@/components/Tab";
+import { Button } from "@/components/ui/button";
 import { Bridge, SERVICE_UUID } from "@/lib/Bridge";
 import Heater from "@/pages/Heater";
 import BridgeContext from "@/stores/BridgeContext";
@@ -15,14 +16,9 @@ import {
   setupIonicReact,
 } from "@ionic/react";
 import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-
 import { StrictMode, useEffect, useState } from "react";
-
 // Core CSS Imports for ionic
 import "@ionic/react/css/core.css";
-// System-controlled dark mode
-import "@ionic/react/css/palettes/dark.system.css";
 
 setupIonicReact({ rippleEffect: false });
 
