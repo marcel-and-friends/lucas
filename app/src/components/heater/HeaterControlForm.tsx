@@ -24,6 +24,7 @@ export default function HeaterControlForm({ isHeating, onSubmit }: Props) {
     watch: form.watch,
     setValue: form.setValue,
     storage: window.localStorage,
+    validate: true,
   });
 
   return (
