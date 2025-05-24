@@ -60,6 +60,8 @@ public:
 private:
     void handle_command(const HeaterControl&);
 
+    void control_heater(state::Heating&, state::Heating::Stage&);
+
     void disable_relays();
 
     command::Queue& m_command_queue;
