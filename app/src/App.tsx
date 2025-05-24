@@ -15,10 +15,9 @@ import {
   isPlatform,
   setupIonicReact,
 } from "@ionic/react";
+import "@ionic/react/css/core.css";
 import { Loader2 } from "lucide-react";
 import { StrictMode, useEffect, useState } from "react";
-// Core CSS Imports for ionic
-import "@ionic/react/css/core.css";
 
 setupIonicReact({ rippleEffect: false });
 
