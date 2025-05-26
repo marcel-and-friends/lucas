@@ -16,13 +16,13 @@ Master::~Master() {
 
 Master::Master(Master&& other) noexcept
     : m_bus_handle(std::exchange(other.m_bus_handle, nullptr))
-    , m_device_handles(std::exchange(other.m_device_handles, {})) { }
+    , m_device_handles(std::move(other.m_device_handles)) { }
 
 Master& Master::operator=(Master&& other) noexcept {
     if (this != &other) {
         MUST(destroy());
         m_bus_handle = std::exchange(other.m_bus_handle, nullptr);
-        m_device_handles = std::exchange(other.m_device_handles, {});
+        m_device_handles = std::move(other.m_device_handles);
     }
     return *this;
 }

@@ -12,8 +12,8 @@ Maestro::Maestro()
     , m_machine_id(TRY_OR_THROW(etk::nvs::PersistentValue<size_t>::make(m_nvs_store, "MachineId", 0)))
     , m_i2c_master(TRY_OR_THROW(etk::i2c::Master::make({
           .i2c_port = I2C_NUM_0,
-          .sda_io_num = GPIO_NUM_4,
-          .scl_io_num = GPIO_NUM_5,
+          .sda_io_num = GPIO_NUM_27,
+          .scl_io_num = GPIO_NUM_26,
           .clk_source = I2C_CLK_SRC_DEFAULT,
           .glitch_ignore_cnt = 7,
           .intr_priority = 0,

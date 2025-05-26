@@ -1,12 +1,4 @@
 import {
-  ChartConfig,
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
-import {
   CartesianGrid,
   Line,
   LineChart,
@@ -14,7 +6,15 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { HeatingStage } from "#/proto/firmware/heater/HeatingReport";
+import type { HeatingStage } from "#/proto/firmware/heater/HeatingReport";
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 
 const chartConfig = {
   temperature: {
@@ -32,16 +32,6 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export default function HeatingChart({ graphData, targetTemperature }: Props) {
-  const firstHeating = graphData.findIndex(
-    (d) => d.stage == HeatingStage.Heating,
-  );
-
-  let heatingPercentage = 0;
-  if (firstHeating != -1) {
-    heatingPercentage =
-      ((graphData.length - firstHeating) * 100) / (graphData.length - 1);
-  }
-
   const tickFormatter = (tick: number) => tick.toFixed(2).replace(/\.?0+$/, "");
 
   return (

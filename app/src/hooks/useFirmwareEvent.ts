@@ -1,6 +1,6 @@
-import { FirmwareEvent } from "#/proto/firmware/FirmwareEvent";
-import useBridge from "@/hooks/useBridge";
 import { useEffect } from "react";
+import type { FirmwareEvent } from "#/proto/firmware/FirmwareEvent";
+import useBridge from "@/hooks/useBridge";
 
 export default function useFirmwareEvent<C extends keyof FirmwareEvent>(
   caseStr: C,

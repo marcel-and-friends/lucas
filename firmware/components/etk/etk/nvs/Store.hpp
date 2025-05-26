@@ -47,13 +47,13 @@ public:
 
     template<typename T>
     requires std::is_trivially_copyable_v<T>
-    error::Expected<T> get(const char* key);
+    error::Expected<T> get(const char* key) const;
 
     template<typename T>
     requires(std::is_trivially_copyable_v<T> and std::is_default_constructible_v<T>)
-    error::Expected<std::vector<T>> get(const char* key);
+    error::Expected<std::vector<T>> get(const char* key) const;
 
-    error::Expected<std::string> get(const char* key);
+    error::Expected<std::string> get(const char* key) const;
 
     error::Expected<void> erase(const char* key);
 
@@ -94,7 +94,7 @@ error::Expected<T> Store::get_or_create(const char* key, T fallback_value) {
 
     TRY_RAW(error);
 
-    return *std::launder(reinterpret_cast<T*>(&storage));
+    return std::bit_cast<T>(storage);
 }
 
 template<typename T>
@@ -120,18 +120,18 @@ error::Expected<std::vector<T>> Store::get_or_create(const char* key, std::span<
 
 template<typename T>
 requires std::is_trivially_copyable_v<T>
-error::Expected<T> Store::get(const char* key) {
+error::Expected<T> Store::get(const char* key) const {
     alignas(T) std::byte storage[sizeof(T)];
     size_t length = sizeof(storage);
 
     TRY_RAW(nvs_get_blob(m_handle, key, &storage, &length));
 
-    return *std::launder(reinterpret_cast<T*>(&storage));
+    return std::bit_cast<T>(storage);
 }
 
 template<typename T>
 requires(std::is_trivially_copyable_v<T> and std::is_default_constructible_v<T>)
-error::Expected<std::vector<T>> Store::get(const char* key) {
+error::Expected<std::vector<T>> Store::get(const char* key) const {
     size_t required_size;
 
     TRY_RAW(nvs_get_blob(m_handle, key, nullptr, &required_size));

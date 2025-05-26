@@ -1,9 +1,3 @@
-import FullscreenCentered from "@/components/FullscreenCentered";
-import Tab from "@/components/Tab";
-import { Button } from "@/components/ui/button";
-import { Bridge, SERVICE_UUID } from "@/lib/Bridge";
-import Heater from "@/pages/Heater";
-import BridgeContext from "@/stores/BridgeContext";
 import { BleClient } from "@capacitor-community/bluetooth-le";
 import {
   IonApp,
@@ -15,6 +9,12 @@ import {
   isPlatform,
   setupIonicReact,
 } from "@ionic/react";
+import FullscreenCentered from "@/components/FullscreenCentered";
+import Tab from "@/components/Tab";
+import { Button } from "@/components/ui/button";
+import { Bridge, SERVICE_UUID } from "@/lib/Bridge";
+import Heater from "@/pages/Heater";
+import BridgeContext from "@/stores/BridgeContext";
 import "@ionic/react/css/core.css";
 import { Loader2 } from "lucide-react";
 import { StrictMode, useEffect, useState } from "react";
@@ -77,6 +77,7 @@ export default function App() {
           <FullscreenCentered />
         </IonApp>
       );
+    // biome-ignore lint/suspicious/noFallthroughSwitchClause: fall through to reuse the same page on mobile
     case State.PrepareSearch:
       if (isPlatform("desktop")) {
         return (
@@ -95,7 +96,6 @@ export default function App() {
           </IonApp>
         );
       }
-    // fall through to reuse the same page on mobile
     case State.Searching:
       return (
         <IonApp>

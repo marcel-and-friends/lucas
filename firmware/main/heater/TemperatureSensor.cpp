@@ -32,9 +32,8 @@ TemperatureSensor::TemperatureSensor(etk::i2c::Master& i2c_master)
     TRY_OR_THROW(ads111x::write(
         m_device_handle,
         Config {
-            // The PID control loop needs a fresh temperature once every 85ms (see `relays::PID_DELTA_TIME`),
-            // meaning we need to sample at least ~12 times per second. 16 is the closest the ADS can give us.
-            .dr = Config::DataRate::_16SPS,
+            // 128 SPS gives us a sample every ~7.8ms, which means we'll most likely get a sample within the current AC phase.
+            .dr = Config::DataRate::_128SPS,
             .mode = Config::Mode::ContinuousConversion,
             // We want to read the full 0-3.3v range. 0-4.096v is the closest the ADS can give us.
             .pga = Config::PGA::FSR_4_096V,
@@ -49,10 +48,17 @@ TemperatureSensor::TemperatureSensor(etk::i2c::Master& i2c_master)
         }));
 }
 
-float TemperatureSensor::read_temperature() const {
-    int16_t conversion = MUST(ads111x::read<ads111x::reg::Conversion>(m_device_handle)).d;
+float TemperatureSensor::read_temperature() {
+    int16_t conversion;
+    if (auto reg = ads111x::read<ads111x::reg::Conversion>(m_device_handle)) {
+        conversion = m_last_conversion = reg->d;
+    } else {
+        LOGE("TemperatureSensor", "Failed to read conversion register, re-using last conversion.");
+        conversion = m_last_conversion;
+    }
+
     // NOTE: We configure the PGA to give us a range of ~4.096v.
-    float volts = std::clamp(4.096f * (float(conversion) / INT16_MAX), 0.0f, VREF);
+    float volts = std::clamp(4.096f * (static_cast<float>(conversion) / INT16_MAX), 0.0f, VREF);
     return steinhart_formula(volts);
 }
 

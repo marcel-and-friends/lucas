@@ -12,10 +12,12 @@ class TemperatureSensor {
 public:
     TemperatureSensor(etk::i2c::Master&);
 
-    float read_temperature() const;
+    float read_temperature();
 
 private:
     i2c_master_dev_handle_t m_device_handle;
+
+    int16_t m_last_conversion { 0 };
 };
 
 }

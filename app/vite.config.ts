@@ -1,11 +1,11 @@
 /// <reference types="vitest" />
 
+import path from "node:path";
+import tailwindcss from "@tailwindcss/vite";
 import legacy from "@vitejs/plugin-legacy";
 import react from "@vitejs/plugin-react";
-import path from "path";
 import { defineConfig } from "vite";
 import viteProtoGenPlugin from "./plugins/vite-proto-gen";
-import tailwindcss from "@tailwindcss/vite";
 
 // https://vitejs.dev/config/
 export default defineConfig({

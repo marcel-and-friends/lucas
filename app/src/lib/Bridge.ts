@@ -1,10 +1,10 @@
-import { AppCommand } from "#/proto/app/AppCommand";
-import { FirmwareEvent } from "#/proto/firmware/FirmwareEvent";
 import {
   BleClient,
-  BleDevice,
+  type BleDevice,
   numberToUUID,
 } from "@capacitor-community/bluetooth-le";
+import { AppCommand } from "#/proto/app/AppCommand";
+import { FirmwareEvent } from "#/proto/firmware/FirmwareEvent";
 
 export const SERVICE_UUID = numberToUUID(0xabf0);
 export const SPP_UUID = "5019aa43-e7f5-95be-9a44-8dd43473c349";

@@ -1,6 +1,6 @@
-import { cn } from "@/lib/utils";
 import { IonContent } from "@ionic/react";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 interface FullscreenCenteredProps {
   children?: ReactNode;

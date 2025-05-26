@@ -28,7 +28,7 @@ public:
 private:
     PersistentValue(Store&, const char* key, T cached_value);
 
-    Store& m_store;
+    Store* m_store;
 
     const char* m_key;
 
@@ -59,7 +59,7 @@ public:
 private:
     PersistentValue(Store&, const char* key, std::optional<T> cached_value);
 
-    Store& m_store;
+    Store* m_store;
 
     const char* m_key;
 
@@ -83,7 +83,7 @@ PersistentValue<T>::PersistentValue(PersistentValue&& other) noexcept(std::is_no
 template<typename T>
 PersistentValue<T>& PersistentValue<T>::operator=(PersistentValue&& other) noexcept(std::is_nothrow_move_assignable_v<T>) {
     if (this != &other) {
-        m_store = other.m_store;
+        m_store = std::exchange(other.m_store, nullptr);
         m_key = std::exchange(other.m_key, nullptr);
         m_cached_value = std::move(other.m_cached_value);
     }
@@ -105,8 +105,8 @@ error::Expected<void> PersistentValue<T>::store(T value) {
     if (m_cached_value == value)
         return {};
 
-    TRY(m_store.set(m_key, value));
-    TRY(m_store.commit());
+    TRY(m_store->set(m_key, value));
+    TRY(m_store->commit());
 
     m_cached_value = std::move(value);
 
@@ -120,7 +120,7 @@ const T& PersistentValue<T>::load() const {
 
 template<typename T>
 PersistentValue<T>::PersistentValue(Store& store, const char* key, T cached_value)
-    : m_store(store)
+    : m_store(&store)
     , m_key(key)
     , m_cached_value(std::move(cached_value)) {
 }
@@ -151,7 +151,7 @@ PersistentValue<std::optional<T>>::PersistentValue(PersistentValue&& other) noex
 template<typename T>
 PersistentValue<std::optional<T>>& PersistentValue<std::optional<T>>::operator=(PersistentValue&& other) noexcept(std::is_nothrow_move_assignable_v<std::optional<T>>) {
     if (this != &other) {
-        m_store = other.m_store;
+        m_store = std::exchange(other.m_store, nullptr);
         m_key = std::exchange(other.m_key, nullptr);
         m_cached_value = std::move(other.m_cached_value);
     }
@@ -174,12 +174,12 @@ error::Expected<void> PersistentValue<std::optional<T>>::store(std::optional<T> 
         return {};
 
     if (value.has_value()) {
-        TRY(m_store.set(m_key, value));
+        TRY(m_store->set(m_key, value));
     } else {
-        TRY(m_store.erase(m_key));
+        TRY(m_store->erase(m_key));
     }
 
-    TRY(m_store.commit());
+    TRY(m_store->commit());
 
     m_cached_value = std::move(value);
 
@@ -193,7 +193,7 @@ const std::optional<T>& PersistentValue<std::optional<T>>::load() const {
 
 template<typename T>
 PersistentValue<std::optional<T>>::PersistentValue(Store& store, const char* key, std::optional<T> cached_value)
-    : m_store(store)
+    : m_store(&store)
     , m_key(key)
     , m_cached_value(std::move(cached_value)) {
 }

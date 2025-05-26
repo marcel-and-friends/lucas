@@ -1,5 +1,8 @@
-import { Button } from "@/components/ui/button";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { type Control, useForm } from "react-hook-form";
 import useFormPersist from "react-hook-form-persist";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -9,9 +12,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Control, useForm } from "react-hook-form";
-import { z } from "zod";
 
 export default function HeaterControlForm({ isHeating, onSubmit }: Props) {
   const form = useForm({
@@ -35,24 +35,28 @@ export default function HeaterControlForm({ isHeating, onSubmit }: Props) {
       >
         <InputField
           control={form.control}
+          type="number"
           name="targetTemperature"
           label="Temperatura Target"
           placeholder="94"
         />
         <InputField
           control={form.control}
+          type="number"
           name="duration"
           label="Duração"
           placeholder="15"
         />
         <InputField
           control={form.control}
+          type="number"
           name="preheatDurationMultiplier"
           label="Multiplicador de tempo do preheat"
           placeholder="30"
         />
         <InputField
           control={form.control}
+          type="number"
           name="preheatPowerMultiplier"
           label="Multiplicador de força do preheat"
           placeholder="2"
@@ -60,18 +64,21 @@ export default function HeaterControlForm({ isHeating, onSubmit }: Props) {
         <div className="flex gap-2">
           <InputField
             control={form.control}
+            type="number"
             name="p"
             label="P"
             placeholder="0.15"
           />
           <InputField
             control={form.control}
+            type="number"
             name="i"
             label="I"
             placeholder="0.15"
           />
           <InputField
             control={form.control}
+            type="number"
             name="d"
             label="D"
             placeholder="0.15"

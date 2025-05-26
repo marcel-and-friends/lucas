@@ -33,6 +33,7 @@ struct Heating {
     };
 
     std::variant<PreHeatingStage, HeatingStage> stage;
+
     xf::time::Tick start;
 
     HeaterControl_Start parameters;
@@ -49,7 +50,7 @@ using State = std::variant<state::Idling, state::Heating>;
 
 }
 
-class Heater final : public xf::task::StaticTask<4096> {
+class Heater final : public xf::task::StaticTask<8192> {
     void setup() override;
 
     void run() override;
@@ -62,7 +63,13 @@ private:
 
     void control_heater(state::Heating&, state::Heating::Stage&);
 
-    void disable_relays();
+    enum class DelayWaterRelayDisable : uint8_t {
+        Yes,
+        No
+    };
+    void disable_relays(DelayWaterRelayDisable);
+
+    float initial_integral(float temperature);
 
     command::Queue& m_command_queue;
 
@@ -71,8 +78,16 @@ private:
     TemperatureSensor m_temperature_sensor;
 
     struct LastHeatingInfo {
-        float last_temperature { 0.0f };
-        float last_integral { 0.0f };
+        float ending_temperature { 0.0f };
+        float ending_integral { 0.0f };
+
+        float reuse_integral(float temperature) {
+            float delta = ending_temperature - temperature;
+            if (delta >= 40.0f)
+                return 0.0f;
+            float ratio = (temperature / ending_temperature);
+            return ending_integral * ratio;
+        }
     };
 
     std::optional<LastHeatingInfo> m_last_heating_info;

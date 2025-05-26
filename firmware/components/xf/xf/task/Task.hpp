@@ -117,10 +117,7 @@ Task<Notifications...>& Task<Notifications...>::operator=(Task&& other) noexcept
 template<std::derived_from<Notification>... Notifications>
 bool Task<Notifications...>::create(const char* name, uint32_t stack_depth, UBaseType_t priority) {
     configASSERT(m_handle == nullptr);
-    bool success = xTaskCreate(task, name, stack_depth, this, priority, &m_handle) == pdPASS;
-    if (success) {
-    }
-    return success;
+    return xTaskCreate(task, name, stack_depth, this, priority, &m_handle) == pdPASS;
 }
 
 template<std::derived_from<Notification>... Notifications>

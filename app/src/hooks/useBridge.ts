@@ -1,5 +1,5 @@
-import BridgeContext from "@/stores/BridgeContext";
 import { useContext } from "react";
+import BridgeContext from "@/stores/BridgeContext";
 
 export default function useBridge() {
   const bridge = useContext(BridgeContext);

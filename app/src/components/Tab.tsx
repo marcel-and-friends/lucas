@@ -1,5 +1,5 @@
 import { IonTab } from "@ionic/react";
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 
 interface TabProps {
   tab: string;

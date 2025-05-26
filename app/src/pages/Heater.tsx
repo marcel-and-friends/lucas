@@ -1,13 +1,15 @@
+import { IonContent } from "@ionic/react";
+import { useState } from "react";
 import { HeatingStage } from "#/proto/firmware/heater/HeatingReport";
 import HeaterControlForm, {
-  HeatingParameters,
+  type HeatingParameters,
 } from "@/components/heater/HeaterControlForm";
-import HeatingChart, { GraphPoint } from "@/components/heater/HeatingChart";
+import HeatingChart, {
+  type GraphPoint,
+} from "@/components/heater/HeatingChart";
 import { Button } from "@/components/ui/button";
 import useBridge from "@/hooks/useBridge";
 import useFirmwareEvent from "@/hooks/useFirmwareEvent";
-import { IonContent } from "@ionic/react";
-import { useState } from "react";
 
 export default function Heater() {
   const bridge = useBridge();
@@ -31,7 +33,7 @@ export default function Heater() {
           event.stage === HeatingStage.PreHeating
             ? event.temperature
             : undefined,
-        pid: event.pid == -1 ? undefined : Math.min(event.pid, 100),
+        pid: event.pid === -1 ? undefined : Math.min(event.pid, 100),
         power: event.power,
         secondsElapsed: event.seconds_elapsed,
         stage: event.stage,
@@ -89,7 +91,7 @@ export default function Heater() {
                 heater_control: {
                   start: {
                     target_temperature: 0,
-                    duration_ms: 20000,
+                    duration_ms: 15000,
 
                     preheat_duration_multiplier: 0,
                     preheat_power_multiplier: 0,

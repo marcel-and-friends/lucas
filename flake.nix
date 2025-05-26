@@ -1,82 +1,71 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs-esp-dev = {
-      url = "github:iniw/nixpkgs-esp-dev";
+      url = "github:mirrexagon/nixpkgs-esp-dev";
       inputs.nixpkgs.follows = "nixpkgs";
-    };
-    android-nixpkgs = {
-      url = "github:tadfisher/android-nixpkgs/stable";
-      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
     };
   };
 
   outputs =
-    {
-      self,
-      nixpkgs,
-      flake-utils,
-      nixpkgs-esp-dev,
-      android-nixpkgs,
-    }:
-    flake-utils.lib.eachDefaultSystem (
+    inputs:
+    inputs.flake-utils.lib.eachDefaultSystem (
       system:
       let
-        overlays = [ (import "${nixpkgs-esp-dev}/overlay.nix") ];
+        pkgs = import inputs.nixpkgs {
+          inherit system;
+          config = {
+            allowUnfree = true;
+            android_sdk.accept_license = true;
+          };
+        };
 
-        pkgs = import nixpkgs { inherit system overlays; };
-
-        esp-idf = pkgs.esp-idf-full.override {
-          extraPythonPackages = (
-            # nanopb requires some extra packages in the python environment
-            pythonPkgs: with pythonPkgs; [
-              grpcio-tools
-              protobuf
-            ]
-          );
+        esp-idf = inputs.nixpkgs-esp-dev.packages.${system}.esp-idf-full.override {
           toolsToInclude = [
             "esp-clang"
-            "xtensa-esp-elf"
-            # Required until https://github.com/espressif/esp-idf/commit/b64ddb18939d06426607a04816e6de881524e87f lands in an ESP-IDF release
-            # See https://github.com/espressif/esp-idf/issues/15035
             "esp-rom-elfs"
+            "xtensa-esp-elf"
+          ];
+
+          # nanopb requires some extra packages in the python environment
+          extraPythonPackages = p: [
+            p.grpcio-tools
+            p.protobuf
           ];
         };
 
-        android-sdk = android-nixpkgs.sdk.${system} (
-          sdkPkgs: with sdkPkgs; [
-            build-tools-36-0-0 # Used for the newer version of zipalign that supports the "-P 16" flag
-            build-tools-34-0-0
-            cmdline-tools-latest
-            platform-tools
-            platforms-android-35
-            platforms-android-34
-          ]
-        );
+        android-sdk =
+          (pkgs.androidenv.composeAndroidPackages {
+            buildToolsVersions = [
+              "36.0.0" # Used for the newer version of zipalign that supports the "-P 16" flag
+              "34.0.0"
+            ];
+            platformVersions = [
+              "35"
+              "34"
+            ];
+          }).androidsdk;
       in
       {
         devShells.default = pkgs.mkShell {
-          nativeBuildInputs = with pkgs; [
-            # Firmware
-            esp-idf
+          packages = with pkgs; [
             # App
             android-sdk
             jdk
             nodejs_22
-            prettierd
-            vscode-langservers-extracted
-            vtsls
+
+            # Firmware
+            esp-idf
+
             # Shared
             buf
             protobuf
           ];
 
-          shellHook = ''
-            export JAVA_HOME=${pkgs.jdk.home}
-          '';
+          ANDROID_SDK_ROOT = "${android-sdk}/libexec/android-sdk";
         };
-
       }
     );
 }

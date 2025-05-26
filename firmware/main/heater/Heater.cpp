@@ -12,11 +12,13 @@
 namespace heater {
 
 static auto HEATER_RELAYS = std::array {
-    etk::gpio::Output { GPIO_NUM_26 },
-    etk::gpio::Output { GPIO_NUM_27 },
+    etk::gpio::Output { GPIO_NUM_18 },
+    etk::gpio::Output { GPIO_NUM_19 },
 };
 
-static auto WATER_RELAY = etk::gpio::Output { GPIO_NUM_16 };
+static auto PREHEATER_RELAY = etk::gpio::Output { GPIO_NUM_17 };
+
+static auto WATER_RELAY = etk::gpio::Output { GPIO_NUM_21 };
 
 static constexpr int percentage_to_watts(float percent) {
     return std::lround(percent / 100.0f * relays::MAX_WATTS);
@@ -40,12 +42,16 @@ Heater::Heater(command::Queue& command_queue, etk::i2c::Master& i2c_master)
 }
 
 void Heater::setup() {
-    for (auto& relay : HEATER_RELAYS)
+    for (auto& relay : HEATER_RELAYS) {
         relay.setup();
+        relay.disable();
+    }
+
+    PREHEATER_RELAY.setup();
+    PREHEATER_RELAY.disable();
 
     WATER_RELAY.setup();
-
-    disable_relays();
+    WATER_RELAY.disable();
 }
 
 void Heater::run() {
@@ -69,8 +75,8 @@ void Heater::handle_command(const HeaterControl& command) {
     case HeaterControl_start_tag: {
         float delta = command.start.target_temperature - m_temperature_sensor.read_temperature();
 
-        int preheat_duration = std::max(std::lround(delta * command.start.preheat_duration_multiplier), 500l);
-        float preheat_power = std::max(delta * command.start.preheat_power_multiplier, 30.0f);
+        int preheat_duration = command.start.preheat_duration_multiplier ? std::max(std::lround(delta * command.start.preheat_duration_multiplier), 250l) : 0;
+        float preheat_power = command.start.preheat_power_multiplier ? std::max(delta * command.start.preheat_power_multiplier, 30.0f) : 0.0f;
 
         // HACK: Do proper non-heating pour functionality
         if (command.start.target_temperature == 0) {
@@ -95,7 +101,7 @@ void Heater::handle_command(const HeaterControl& command) {
     case HeaterControl_stop_tag:
         m_state = state::Idling {};
 
-        disable_relays();
+        disable_relays(DelayWaterRelayDisable::Yes);
 
         LOGI("Heater", "Heating stopped");
         break;
@@ -118,7 +124,7 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
         return *temperature;
     };
 
-    if (stage.relays_controller.needs_new_phase_group()) {
+    if (stage.relays_controller.needs_new_control_data()) {
         auto control_info = wxs::match(
             heating.stage,
             [](state::Heating::PreHeatingStage& stage) -> state::Heating::ControlInfo {
@@ -132,7 +138,7 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
 
         heating.active_control_info = control_info;
 
-        stage.relays_controller.set_relay_state_group(control_info.control_data.relays_state_group);
+        stage.relays_controller.set_control_data(control_info.control_data);
     }
 
     if (check_interval(heating.last_report, REPORT_INTERVAL, start) or finished_stage or started_stage) {
@@ -154,7 +160,7 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
         wxs::match(
             heating.stage,
             [&](state::Heating::PreHeatingStage&) {
-                float initial_integral = m_last_heating_info.transform([&](auto& info) { return info.last_integral * (temperature() / info.last_temperature); }).value_or(0.0f);
+                float initial_integral = this->initial_integral(temperature());
                 LOGI("Heater", "Reusing last heating info (integral={})", initial_integral);
 
                 heating.stage = state::Heating::HeatingStage {
@@ -172,35 +178,31 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
                         initial_integral),
                 };
 
+                PREHEATER_RELAY.enable();
                 WATER_RELAY.enable();
             },
             [&](state::Heating::HeatingStage& stage) {
                 // HACK: Do proper non-heating pour functionality
                 if (heating.parameters.target_temperature)
                     m_last_heating_info = LastHeatingInfo {
-                        .last_temperature = temperature(),
-                        .last_integral = stage.pid.integral(),
+                        .ending_temperature = temperature(),
+                        .ending_integral = stage.pid.integral(),
                     };
 
                 LOGI("Heater", "Saving heating info (integral={})", stage.pid.integral());
 
                 m_state = state::Idling {};
 
-                for (auto& relay : HEATER_RELAYS)
-                    relay.disable();
-
-                delay(300ms);
-
-                WATER_RELAY.disable();
+                disable_relays(heating.parameters.target_temperature ? DelayWaterRelayDisable::Yes : DelayWaterRelayDisable::No);
             });
 
         return;
     }
 
     if (check_interval(stage.last_phase_group_state_change, relays::AC_PHASE_INTERVAL, start)) {
-        auto relays_state = stage.relays_controller.next_relay_state();
-        HEATER_RELAYS[0].set(relays_state.weak);
-        HEATER_RELAYS[1].set(relays_state.strong);
+        auto relays_state = stage.relays_controller.next_control_state();
+        HEATER_RELAYS[0].set(relays_state.active_relays & relays::Weak);
+        HEATER_RELAYS[1].set(relays_state.active_relays & relays::Strong);
     }
 
     auto end = xf::time::now();
@@ -213,10 +215,21 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
         handle_command(*command);
 }
 
-void Heater::disable_relays() {
-    WATER_RELAY.disable();
+void Heater::disable_relays(Heater::DelayWaterRelayDisable delay_water_relay) {
     for (auto& relay : HEATER_RELAYS)
         relay.disable();
+
+    PREHEATER_RELAY.disable();
+
+    if (delay_water_relay == DelayWaterRelayDisable::Yes)
+        // This is roughly the minimum amount of time for the heater to not boil the body of residual water when turning it off.
+        delay(350ms);
+
+    WATER_RELAY.disable();
+}
+
+float Heater::initial_integral(float temperature) {
+    return m_last_heating_info.transform([&](auto& info) { return info.reuse_integral(temperature); }).value_or(0.0f);
 }
 
 }

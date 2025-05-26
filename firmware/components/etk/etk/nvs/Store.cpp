@@ -46,7 +46,7 @@ error::Expected<std::string> Store::get_or_create(const char* key, std::string_v
     return value;
 }
 
-error::Expected<std::string> Store::get(const char* key) {
+error::Expected<std::string> Store::get(const char* key) const {
     size_t required_size;
 
     TRY_RAW(nvs_get_blob(m_handle, key, nullptr, &required_size));
