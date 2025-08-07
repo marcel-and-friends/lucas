@@ -29,34 +29,6 @@ error::Expected<void> Store::set(const char* key, std::string_view value) {
     return set(key, std::span { value.data(), value.size() });
 }
 
-error::Expected<std::string> Store::get_or_create(const char* key, std::string_view fallback_value) {
-    size_t required_size;
-
-    auto error = nvs_get_blob(m_handle, key, nullptr, &required_size);
-    if (error == ESP_ERR_NVS_NOT_FOUND) {
-        TRY(set(key, fallback_value));
-        return std::string(fallback_value);
-    }
-
-    TRY_RAW(error);
-
-    std::string value(required_size, '\0');
-    TRY_RAW(nvs_get_blob(m_handle, key, value.data(), &required_size));
-
-    return value;
-}
-
-error::Expected<std::string> Store::get(const char* key) const {
-    size_t required_size;
-
-    TRY_RAW(nvs_get_blob(m_handle, key, nullptr, &required_size));
-
-    std::string value(required_size, '\0');
-    TRY_RAW(nvs_get_blob(m_handle, key, value.data(), &required_size));
-
-    return value;
-}
-
 error::Expected<void> Store::erase(const char* key) {
     TRY_RAW(nvs_erase_key(m_handle, key));
     return {};

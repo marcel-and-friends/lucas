@@ -68,7 +68,7 @@ private:
 
 template<typename T>
 error::Expected<PersistentValue<T>> PersistentValue<T>::make(Store& store, const char* key, const auto& fallback_value) {
-    auto cached_value = TRY(store.get_or_create(key, fallback_value));
+    auto cached_value = TRY(store.get_or_create<T>(key, fallback_value));
     TRY(store.commit());
     return PersistentValue(store, key, std::move(cached_value));
 }
@@ -127,14 +127,14 @@ PersistentValue<T>::PersistentValue(Store& store, const char* key, T cached_valu
 
 template<typename T>
 error::Expected<PersistentValue<std::optional<T>>> PersistentValue<std::optional<T>>::make(Store& store, const char* key, const auto& fallback_value) {
-    auto cached_value = TRY(store.get_or_create(key, fallback_value));
+    auto cached_value = TRY(store.get_or_create<T>(key, fallback_value));
     TRY(store.commit());
     return PersistentValue(store, key, std::move(cached_value));
 }
 
 template<typename T>
 error::Expected<PersistentValue<std::optional<T>>> PersistentValue<std::optional<T>>::make(Store& store, const char* key) {
-    if (auto cached_value = store.get(key)) {
+    if (auto cached_value = store.get<T>(key)) {
         return PersistentValue(store, key, *std::move(cached_value));
     } else {
         return PersistentValue(store, key, std::nullopt);
