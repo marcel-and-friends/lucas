@@ -11,9 +11,7 @@ export const SPP_UUID = "5019aa43-e7f5-95be-9a44-8dd43473c349";
 export const STATUS_UUID = "44642abc-6057-f595-1246-fe23279bcf52";
 
 export class Bridge {
-  private subscriptions: {
-    [C in keyof FirmwareEvent]: (event: NonNullable<FirmwareEvent[C]>) => void;
-  } = {};
+  private subscriptions = new Map<keyof FirmwareEvent, (event: unknown) => void>();
 
   private readonly device: BleDevice;
 
@@ -30,8 +28,7 @@ export class Bridge {
           const typed_field = field as keyof FirmwareEvent;
           const typed_value = value as FirmwareEvent[typeof typed_field];
           if (typed_value !== undefined) {
-            // @ts-expect-error: I don't think there's a way to make tsc happy about this but it's sound.
-            this.subscriptions[typed_field]?.(typed_value);
+            this.subscriptions.get(typed_field)?.(typed_value);
             break;
           }
         }
@@ -47,12 +44,13 @@ export class Bridge {
     caseStr: C,
     callback: (event: NonNullable<FirmwareEvent[C]>) => void,
   ) {
-    // @ts-expect-error: I don't think there's a way to make tsc happy about this but it's sound.
-    this.subscriptions[caseStr] = callback;
+    this.subscriptions.set(caseStr, (event) =>
+      callback(event as NonNullable<FirmwareEvent[C]>),
+    );
   }
 
   unsubscribe<C extends keyof FirmwareEvent>(caseStr: C) {
-    this.subscriptions[caseStr] = undefined;
+    this.subscriptions.delete(caseStr);
   }
 
   sendCommand(command: AppCommand) {

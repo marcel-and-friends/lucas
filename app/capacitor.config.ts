@@ -7,10 +7,11 @@ const config: CapacitorConfig = {
   android: {
     buildOptions: {
       keystorePath: "keystore",
-      keystorePassword: "lucas-cafe",
+      keystorePassword: "lucas!5547",
       keystoreAlias: "lucas-key",
-      keystoreAliasPassword: "lucas-cafe",
+      keystoreAliasPassword: "lucas!5547",
       releaseType: "APK",
+      signingType: "apksigner",
     },
     adjustMarginsForEdgeToEdge: "auto",
   },

@@ -4,7 +4,6 @@
     flake-utils.url = "github:numtide/flake-utils";
     nixpkgs-esp-dev = {
       url = "github:mirrexagon/nixpkgs-esp-dev";
-      inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
     };
   };
@@ -36,16 +35,15 @@
           ];
         };
 
+        buildToolsVersion = "36.0.0";
+
         android-sdk =
           (pkgs.androidenv.composeAndroidPackages {
             buildToolsVersions = [
-              "36.0.0" # Used for the newer version of zipalign that supports the "-P 16" flag
-              "34.0.0"
+              buildToolsVersion
+              "35.0.0" # AGP 8.13's default build tools version
             ];
-            platformVersions = [
-              "35"
-              "34"
-            ];
+            platformVersions = [ "36" ];
           }).androidsdk;
       in
       {
@@ -54,7 +52,7 @@
             # App
             android-sdk
             jdk
-            nodejs_22
+            nodejs_24
 
             # Firmware
             esp-idf
@@ -64,7 +62,11 @@
             protobuf
           ];
 
-          ANDROID_SDK_ROOT = "${android-sdk}/libexec/android-sdk";
+          env.ANDROID_SDK_ROOT = "${android-sdk}/libexec/android-sdk";
+
+          shellHook = ''
+            export PATH="$ANDROID_SDK_ROOT/build-tools/${buildToolsVersion}:$PATH"
+          '';
         };
       }
     );

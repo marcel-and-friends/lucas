@@ -38,7 +38,9 @@ export default function HeatingChart({ graphData, targetTemperature }: Props) {
     <ChartContainer config={chartConfig}>
       <LineChart data={graphData}>
         <CartesianGrid vertical={false} strokeDasharray="3" />
-        <ReferenceLine y={targetTemperature} stroke="var(--foreground)" />
+        {targetTemperature !== undefined && (
+          <ReferenceLine y={targetTemperature} stroke="var(--foreground)" />
+        )}
         <XAxis
           dataKey="secondsElapsed"
           type="number"

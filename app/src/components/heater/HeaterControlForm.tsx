@@ -121,6 +121,7 @@ function InputField({
               placeholder={placeholder}
               {...field}
               value={field.value ?? ""}
+              onChange={(event) => field.onChange(event.target.valueAsNumber)}
             />
           </FormControl>
           <FormMessage />
@@ -139,22 +140,22 @@ interface InputFieldProps {
 }
 
 const HeatingParametersSchema = z.object({
-  targetTemperature: z.coerce
+  targetTemperature: z
     .number()
     .min(1, { message: "Temperatura deve ser ao menos 1°C" })
     .max(100, { message: "Temperatura deve ser no máximo 100°C" }),
 
-  duration: z.coerce
+  duration: z
     .number()
     .min(1, { message: "Duração deve ser ao menos 1s" })
     .max(180, { message: "Duração deve ser no máximo 180s" }),
 
-  preheatDurationMultiplier: z.coerce.number(),
-  preheatPowerMultiplier: z.coerce.number(),
+  preheatDurationMultiplier: z.number(),
+  preheatPowerMultiplier: z.number(),
 
-  p: z.coerce.number(),
-  i: z.coerce.number(),
-  d: z.coerce.number(),
+  p: z.number(),
+  i: z.number(),
+  d: z.number(),
 });
 
 export type HeatingParameters = z.infer<typeof HeatingParametersSchema>;

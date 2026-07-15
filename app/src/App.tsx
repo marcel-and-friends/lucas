@@ -77,9 +77,12 @@ export default function App() {
           <FullscreenCentered />
         </IonApp>
       );
-    // biome-ignore lint/suspicious/noFallthroughSwitchClause: fall through to reuse the same page on mobile
     case State.PrepareSearch:
-      if (isPlatform("desktop")) {
+    case State.Searching:
+      if (
+        bluetoothState.kind === State.PrepareSearch &&
+        isPlatform("desktop")
+      ) {
         return (
           <IonApp>
             <FullscreenCentered>
@@ -96,7 +99,6 @@ export default function App() {
           </IonApp>
         );
       }
-    case State.Searching:
       return (
         <IonApp>
           <FullscreenCentered>

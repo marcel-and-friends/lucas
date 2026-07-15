@@ -1,32 +1,92 @@
 #!/usr/bin/env nu
 
-const root = path self .
+# NOTE: Must be kept in sync with the `server.port` value defined in
+# 'vite.config.ts', or with Vite's default when no port is configured there.
+const vite_port = 5173
 
+const firebase_app_id = "1:30527513892:android:a92a8bd70821d60141ffb1"
+
+# Development tool to build, run and distribute the app.
+# Runs the `run --dev` subcommand by default.
 def main [] {
-  main run desktop
+  main run --dev
 }
 
+# Run the app on the connected Android device.
 def "main run" [
-  target: string
+  --dev # Whether to run in development mode. This enables live reloading.
 ] {
-  match (target | str downcase) {
-    "desktop" => (npx ionic serve --prod)
-    "android" => (npx ionic capacitor run android --livereload --external)
+  if $dev {
+    # Check if there's an active user of the port we use to host the Vite server.
+    let result = lsof -i :($vite_port) | complete | get exit_code
+    if $result == 1 {
+      print $"No active Vite server, please start one with the (ansi blue_bold)vite(ansi reset) subcommand"
+      return
+    }
+
+    npx cap run android --live-reload --port $vite_port
+  } else {
+    let apk_path = main build "APK"
+
+    npx native-run android --app $apk_path
   }
 }
 
+# Build and bundle the app for Android devices.
+# Alignment and signing of the resulting APK are handled automatically.
 def "main build" [
-  target: string
+  type: string # The Android build type. One of 'APK' or 'AAB'.
 ] {
-  match (target | str downcase) {
-    "desktop" => {
-      npx tsc
-      npx vite build
-    }
-    "android" => {
-      npx ionic capacitor build android --prod --no-open
-      npx cap build android
-      ^$"($env.ANDROID_SDK_ROOT)/build-tools/36.0.0/zipalign" -P 16 -f -v 4 $"($root)/android/app/build/outputs/apk/release/app-release-signed.apk" $"($root)/android/app/build/outputs/apk/release/zipalign-app-release-signed.apk
-"    }
+  if $type not-in ["APK", "AAB"] {
+    error make { msg: $"Unsupported Android build type: ($type)" }
   }
+
+  # Build and type-check the web app, then synchronize it with Android.
+  npm run build
+  npx cap sync android
+
+  let output = npx cap build android --androidreleasetype $type
+    | tee { print --raw --no-newline }
+
+  let artifact = $output
+    | ansi strip
+    | lines
+    | parse --regex 'Successfully generated (?<name>.*) at: (?<directory>.*)$'
+    | last
+
+  $artifact.directory | path join $artifact.name
+}
+
+# Build and distribute the APK through Firebase App Distribution.
+def "main distribute" [] {
+  let apk_path = main build "APK"
+
+  let version_info = ^aapt dump badging $apk_path
+    | lines
+    | first
+    | parse --regex "versionCode='(?<version_code>.*?)' versionName='(?<version_name>.*?)'"
+    | first
+
+  print $"Distributing v($version_info.version_name) \(($version_info.version_code))"
+
+  let release_notes = input "Release notes > " --reedline
+  let testers = input "Testers > " --default "maquinadecafecoado@gmail.com" --reedline
+
+  npx firebase appdistribution:distribute $apk_path --app $firebase_app_id --release-notes $release_notes --testers $testers
+}
+
+# Start a new Vite server, killing an existing one.
+def --wrapped "main vite" [...args] {
+  let active_server = lsof -t -i :($vite_port) | complete
+  if $active_server.exit_code == 0 {
+    ^kill $active_server.stdout
+  }
+
+  npx vite --port $vite_port ...$args
+}
+
+# Run the configured lint, build, and type checks.
+def --wrapped "main check" [...args] {
+  npx biome lint --error-on-warnings . ...$args
+  npm run build
 }
