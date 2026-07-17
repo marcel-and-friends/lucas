@@ -36,9 +36,15 @@ static constexpr int MAX_CONSECUTIVE_SENSOR_FAILURES = 8;
 // down to soak power once the projection nears the target, and only open the water once the
 // projection reaches it.
 static constexpr float PREHEAT_LOOKAHEAD_SECONDS = 1.0f;
-static constexpr float PREHEAT_SOAK_THRESHOLD = 10.0f;
+static constexpr float PREHEAT_SOAK_BAND = 6.0f;
 static constexpr float PREHEAT_SOAK_POWER_PERCENT = 30.0f;
 static constexpr float PREHEAT_EXIT_MARGIN = 4.0f;
+
+// A DRY channel sizzles when first wetted at high temperature no matter how settled the film is
+// (bench: opened at 97C settled and powered-down — still steamed; opening below ~60C never
+// did). A wetted wall, on the other hand, held 94C at full power without a hiss. So the dry
+// stage never goes beyond this ceiling — the rest of the climb happens under flow.
+static constexpr float PREHEAT_MAX_DRY_TEMPERATURE = 80.0f;
 
 // After the relays cut, the film keeps dumping its stored heat into the body for about a second
 // (bench: the body peaked 0.9s AFTER the preheat ended). Water arriving during that window
@@ -170,8 +176,12 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
     bool is_preheating = std::holds_alternative<state::Heating::PreHeatingStage>(heating.stage);
 
     // The preheat deadline is an upper bound: once the projected body temperature reaches the
-    // target there is nothing left to preheat, and staying dry any longer only overshoots and
-    // boils the first water that comes in.
+    // exit threshold there is nothing left to do dry, and staying dry any longer only sizzles
+    // the first water that comes in.
+    float preheat_exit_threshold = std::min(
+        static_cast<float>(heating.parameters.target_temperature) - PREHEAT_EXIT_MARGIN,
+        PREHEAT_MAX_DRY_TEMPERATURE);
+
     float projected_temperature = temperature;
     if (auto* preheat_stage = std::get_if<state::Heating::PreHeatingStage>(&heating.stage))
         projected_temperature += preheat_stage->slope_per_second * PREHEAT_LOOKAHEAD_SECONDS;
@@ -179,7 +189,7 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
     bool preheat_done_early = is_preheating
         and heating.parameters.target_temperature > 0
         and reading.valid
-        and projected_temperature >= heating.parameters.target_temperature - PREHEAT_EXIT_MARGIN;
+        and projected_temperature >= preheat_exit_threshold;
 
     bool finished_stage = start >= stage.deadline or preheat_done_early;
     bool finished_heating = finished_stage and not is_preheating;
@@ -197,7 +207,7 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
                 float projected = temperature + stage.slope_per_second * PREHEAT_LOOKAHEAD_SECONDS;
                 bool soaking = heating.parameters.target_temperature > 0
                     and reading.valid
-                    and projected >= heating.parameters.target_temperature - PREHEAT_SOAK_THRESHOLD;
+                    and projected >= preheat_exit_threshold - PREHEAT_SOAK_BAND;
                 if (soaking)
                     return { relays::find_best_control_data_for_watts(percentage_to_watts(PREHEAT_SOAK_POWER_PERCENT)), std::nullopt };
 
