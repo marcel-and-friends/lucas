@@ -23,7 +23,9 @@ public:
     Reading read();
 
 private:
-    i2c_master_dev_handle_t m_device_handle;
+    i2c_master_dev_handle_t m_device_handle { nullptr };
+
+    bool m_initialized { false };
 
     int16_t m_last_conversion { 0 };
 };
