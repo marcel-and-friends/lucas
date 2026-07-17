@@ -35,7 +35,9 @@ static constexpr int MAX_CONSECUTIVE_SENSOR_FAILURES = 8;
 // cold element at full power climbs ~50C/s and instantaneous thresholds trigger too late: slow
 // down to soak power once the projection nears the target, and only open the water once the
 // projection reaches it.
-static constexpr float PREHEAT_LOOKAHEAD_SECONDS = 1.0f;
+// Calibrated on the bench: cutting at full power, the body kept climbing ~27C past a 1s
+// projection — the stored film heat is worth well over two seconds of the measured slope.
+static constexpr float PREHEAT_LOOKAHEAD_SECONDS = 2.5f;
 static constexpr float PREHEAT_SOAK_BAND = 6.0f;
 static constexpr float PREHEAT_SOAK_POWER_PERCENT = 30.0f;
 static constexpr float PREHEAT_EXIT_MARGIN = 4.0f;
