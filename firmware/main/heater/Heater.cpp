@@ -28,11 +28,17 @@ static constexpr float MAX_ELEMENT_TEMPERATURE = 150.0f;
 // this bounds how long we tolerate flying blind to roughly a couple hundred milliseconds.
 static constexpr int MAX_CONSECUTIVE_SENSOR_FAILURES = 8;
 
-// The ceramic behind the NTC runs hotter than the NTC reads, so a preheat that goes all the way
-// to the target keeps climbing after the water opens (bench 17/07: exit at 94 -> body peaked at
-// 105 and the first sip came out steaming). End the dry stage early and let the stored heat
-// carry the body the rest of the way.
-static constexpr float PREHEAT_EXIT_MARGIN = 10.0f;
+// The resistive film ahead of the NTC runs far hotter than the reading while at full power, and
+// that stored heat keeps pushing the body up after the relays cut (bench 17/07: exiting the dry
+// stage at full power overshot by ~20C no matter the exit margin, steaming the first sip). Two
+// defenses, both driven by the PROJECTED temperature (reading + slope * LOOKAHEAD) because a
+// cold element at full power climbs ~50C/s and instantaneous thresholds trigger too late: slow
+// down to soak power once the projection nears the target, and only open the water once the
+// projection reaches it.
+static constexpr float PREHEAT_LOOKAHEAD_SECONDS = 1.0f;
+static constexpr float PREHEAT_SOAK_THRESHOLD = 10.0f;
+static constexpr float PREHEAT_SOAK_POWER_PERCENT = 30.0f;
+static constexpr float PREHEAT_EXIT_MARGIN = 4.0f;
 
 static constexpr int percentage_to_watts(float percent) {
     return std::lround(percent / 100.0f * relays::MAX_WATTS);
@@ -157,13 +163,17 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
 
     bool is_preheating = std::holds_alternative<state::Heating::PreHeatingStage>(heating.stage);
 
-    // The preheat deadline is an upper bound: if the element body is close enough to the target
-    // there is nothing left to preheat, and staying dry any longer only overshoots and boils the
-    // first water that comes in.
+    // The preheat deadline is an upper bound: once the projected body temperature reaches the
+    // target there is nothing left to preheat, and staying dry any longer only overshoots and
+    // boils the first water that comes in.
+    float projected_temperature = temperature;
+    if (auto* preheat_stage = std::get_if<state::Heating::PreHeatingStage>(&heating.stage))
+        projected_temperature += preheat_stage->slope_per_second * PREHEAT_LOOKAHEAD_SECONDS;
+
     bool preheat_done_early = is_preheating
         and heating.parameters.target_temperature > 0
         and reading.valid
-        and temperature >= heating.parameters.target_temperature - PREHEAT_EXIT_MARGIN;
+        and projected_temperature >= heating.parameters.target_temperature - PREHEAT_EXIT_MARGIN;
 
     bool finished_stage = start >= stage.deadline or preheat_done_early;
     bool finished_heating = finished_stage and not is_preheating;
@@ -171,7 +181,20 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
     if (stage.relays_controller.needs_new_control_data()) {
         auto control_info = wxs::match(
             heating.stage,
-            [](state::Heating::PreHeatingStage& stage) -> state::Heating::ControlInfo {
+            [&](state::Heating::PreHeatingStage& stage) -> state::Heating::ControlInfo {
+                if (reading.valid) {
+                    if (stage.previous_temperature >= 0.0f)
+                        stage.slope_per_second = (temperature - stage.previous_temperature) / relays::PID_DELTA_TIME.count();
+                    stage.previous_temperature = temperature;
+                }
+
+                float projected = temperature + stage.slope_per_second * PREHEAT_LOOKAHEAD_SECONDS;
+                bool soaking = heating.parameters.target_temperature > 0
+                    and reading.valid
+                    and projected >= heating.parameters.target_temperature - PREHEAT_SOAK_THRESHOLD;
+                if (soaking)
+                    return { relays::find_best_control_data_for_watts(percentage_to_watts(PREHEAT_SOAK_POWER_PERCENT)), std::nullopt };
+
                 return { stage.control_data, std::nullopt };
             },
             [&](state::Heating::HeatingStage& stage) -> state::Heating::ControlInfo {

@@ -28,6 +28,12 @@ struct Heating {
 
     struct PreHeatingStage : Stage {
         relays::ControlData control_data;
+
+        // Tracked to project where the body temperature is headed — a cold element at full power
+        // climbs tens of degrees per second, so decisions based on the instantaneous reading
+        // always come too late.
+        float previous_temperature { -1.0f };
+        float slope_per_second { 0.0f };
     };
 
     struct HeatingStage : Stage {
