@@ -28,6 +28,12 @@ static constexpr float MAX_ELEMENT_TEMPERATURE = 150.0f;
 // this bounds how long we tolerate flying blind to roughly a couple hundred milliseconds.
 static constexpr int MAX_CONSECUTIVE_SENSOR_FAILURES = 8;
 
+// The ceramic behind the NTC runs hotter than the NTC reads, so a preheat that goes all the way
+// to the target keeps climbing after the water opens (bench 17/07: exit at 94 -> body peaked at
+// 105 and the first sip came out steaming). End the dry stage early and let the stored heat
+// carry the body the rest of the way.
+static constexpr float PREHEAT_EXIT_MARGIN = 10.0f;
+
 static constexpr int percentage_to_watts(float percent) {
     return std::lround(percent / 100.0f * relays::MAX_WATTS);
 }
@@ -81,6 +87,11 @@ void Heater::run() {
 void Heater::handle_command(const HeaterControl& command) {
     switch (command.which_tag) {
     case HeaterControl_start_tag: {
+        // The first conversion after a long idle can be stale (bench: 52C on a 26C element) and
+        // the whole preheat is sized off this one number — discard it and wait for a fresh one.
+        m_temperature_sensor.read();
+        delay(15ms);
+
         auto reading = m_temperature_sensor.read();
         if (not reading.valid) {
             raise_alarm(AlarmCode_SENSOR_FAILURE);
@@ -146,13 +157,13 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
 
     bool is_preheating = std::holds_alternative<state::Heating::PreHeatingStage>(heating.stage);
 
-    // The preheat deadline is an upper bound: if the element body already reached the target
+    // The preheat deadline is an upper bound: if the element body is close enough to the target
     // there is nothing left to preheat, and staying dry any longer only overshoots and boils the
     // first water that comes in.
     bool preheat_done_early = is_preheating
         and heating.parameters.target_temperature > 0
         and reading.valid
-        and temperature >= heating.parameters.target_temperature;
+        and temperature >= heating.parameters.target_temperature - PREHEAT_EXIT_MARGIN;
 
     bool finished_stage = start >= stage.deadline or preheat_done_early;
     bool finished_heating = finished_stage and not is_preheating;

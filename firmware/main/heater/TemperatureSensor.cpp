@@ -1,6 +1,7 @@
 #include <cmath>
 
 #include <driver/i2c_master.h>
+#include <esp_log.h>
 
 #include <ads111x/ads111x.hpp>
 
@@ -23,12 +24,64 @@ static constexpr float steinhart_formula(float volts) {
     return 1.0 / (A + B * log + D * std::pow(log, 3)) - 273.15;
 }
 
+static int scan_bus(i2c_master_bus_handle_t bus, const char* label) {
+    int found = 0;
+    for (uint16_t address = 0x08; address <= 0x77; ++address) {
+        if (i2c_master_probe(bus, address, 20) == ESP_OK) {
+            LOGW("TemperatureSensor", "I2C scan [{}]: device responding at address 0x{:02X}", label, address);
+            ++found;
+        }
+    }
+    LOGW("TemperatureSensor", "I2C scan [{}]: {} device(s) found", label, found);
+    return found;
+}
+
+// When the ADS doesn't answer, figure out why so the bench log says exactly which wire to fix:
+// scan the configured bus (expected: ADS at 0x48 with ADDR->GND; 0x49=VDD, 0x4A=SDA, 0x4B=SCL),
+// and if nothing answers, retry with SDA/SCL swapped to detect inverted wires.
+static void run_wiring_diagnostics(etk::i2c::Master& i2c_master) {
+    // The probe misses would otherwise flood the log with one NACK error per address.
+    esp_log_level_set("i2c.master", ESP_LOG_NONE);
+
+    if (scan_bus(i2c_master.bus_handle(), "SDA=27 SCL=26") > 0) {
+        LOGE("TemperatureSensor", "The bus works but the ADS didn't answer at 0x48 — check the module's ADDR pin (must go to GND)");
+        esp_log_level_set("i2c.master", ESP_LOG_ERROR);
+        return;
+    }
+
+    i2c_master_bus_config_t swapped_config = {
+        .i2c_port = I2C_NUM_1,
+        .sda_io_num = GPIO_NUM_26,
+        .scl_io_num = GPIO_NUM_27,
+        .clk_source = I2C_CLK_SRC_DEFAULT,
+        .glitch_ignore_cnt = 7,
+        .intr_priority = 0,
+        .trans_queue_depth = 0,
+        .flags = {
+            .enable_internal_pullup = true,
+            .allow_pd = false,
+        },
+    };
+
+    i2c_master_bus_handle_t swapped;
+    if (i2c_new_master_bus(&swapped_config, &swapped) == ESP_OK) {
+        if (scan_bus(swapped, "SDA=26 SCL=27 (swapped)") > 0)
+            LOGE("TemperatureSensor", "Devices answer with SDA/SCL swapped — the wires on GPIO26/GPIO27 are inverted");
+        else
+            LOGE("TemperatureSensor", "No I2C device answers in either arrangement — check the module's VDD/GND and the wires to GPIO27 (SDA) / GPIO26 (SCL)");
+        i2c_del_master_bus(swapped);
+    }
+
+    esp_log_level_set("i2c.master", ESP_LOG_ERROR);
+}
+
 // A missing or unresponsive ADS must not take the whole firmware down with it: the machine still
 // needs to boot, advertise over BLE and be able to refuse to heat with a SENSOR_FAILURE alarm.
 TemperatureSensor::TemperatureSensor(etk::i2c::Master& i2c_master) {
     auto device_handle = ads111x::init(i2c_master.bus_handle(), ads111x::AddrSelection::GND, 400'000);
     if (not device_handle) {
         LOGE("TemperatureSensor", "Failed to initialize the ADS (error={:X}), all readings will be invalid", device_handle.error());
+        run_wiring_diagnostics(i2c_master);
         return;
     }
 
@@ -50,6 +103,7 @@ TemperatureSensor::TemperatureSensor(etk::i2c::Master& i2c_master) {
         });
     if (not configured) {
         LOGE("TemperatureSensor", "Failed to configure the ADS (error={:X}), all readings will be invalid", configured.error());
+        run_wiring_diagnostics(i2c_master);
         return;
     }
 
@@ -60,6 +114,7 @@ TemperatureSensor::TemperatureSensor(etk::i2c::Master& i2c_master) {
         });
     if (not pointed) {
         LOGE("TemperatureSensor", "Failed to set the ADS address pointer (error={:X}), all readings will be invalid", pointed.error());
+        run_wiring_diagnostics(i2c_master);
         return;
     }
 
