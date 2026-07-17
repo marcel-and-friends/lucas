@@ -12,7 +12,15 @@ class TemperatureSensor {
 public:
     TemperatureSensor(etk::i2c::Master&);
 
-    float read_temperature();
+    struct Reading {
+        float temperature;
+        // False when the I2C read failed or the value is outside what an intact NTC can produce
+        // (open/shorted sensor). The temperature is still the best guess we have, but it must not
+        // be trusted for control decisions.
+        bool valid;
+    };
+
+    Reading read();
 
 private:
     i2c_master_dev_handle_t m_device_handle;

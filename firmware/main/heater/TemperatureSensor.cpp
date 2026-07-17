@@ -48,18 +48,29 @@ TemperatureSensor::TemperatureSensor(etk::i2c::Master& i2c_master)
         }));
 }
 
-float TemperatureSensor::read_temperature() {
+// An intact NTC on the heater body can never read outside of this range; values beyond it mean
+// the sensor is open, shorted or disconnected.
+constexpr float MIN_PLAUSIBLE_TEMPERATURE = -20.0f;
+constexpr float MAX_PLAUSIBLE_TEMPERATURE = 300.0f;
+
+TemperatureSensor::Reading TemperatureSensor::read() {
     int16_t conversion;
+    bool i2c_ok = true;
     if (auto reg = ads111x::read<ads111x::reg::Conversion>(m_device_handle)) {
         conversion = m_last_conversion = reg->d;
     } else {
         LOGE("TemperatureSensor", "Failed to read conversion register, re-using last conversion.");
         conversion = m_last_conversion;
+        i2c_ok = false;
     }
 
     // NOTE: We configure the PGA to give us a range of ~4.096v.
     float volts = std::clamp(4.096f * (static_cast<float>(conversion) / INT16_MAX), 0.0f, VREF);
-    return steinhart_formula(volts);
+    float temperature = steinhart_formula(volts);
+
+    bool plausible = temperature > MIN_PLAUSIBLE_TEMPERATURE and temperature < MAX_PLAUSIBLE_TEMPERATURE;
+
+    return { temperature, i2c_ok and plausible };
 }
 
 }

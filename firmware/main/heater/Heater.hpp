@@ -3,6 +3,8 @@
 #include <etk/i2c/Master.hpp>
 #include <xf/task/StaticTask.hpp>
 
+#include <proto/firmware/Alarm.pb.h>
+
 #include "TemperatureSensor.hpp"
 #include "command.hpp"
 #include "pid.hpp"
@@ -69,6 +71,8 @@ private:
     };
     void disable_relays(DelayWaterRelayDisable);
 
+    void raise_alarm(AlarmCode);
+
     float initial_integral(float temperature);
 
     command::Queue& m_command_queue;
@@ -76,6 +80,8 @@ private:
     state::State m_state;
 
     TemperatureSensor m_temperature_sensor;
+
+    int m_consecutive_sensor_failures { 0 };
 
     struct LastHeatingInfo {
         float ending_temperature { 0.0f };

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <format>
 #include <optional>
 
@@ -14,6 +15,11 @@ struct Constants {
 
 class Controller {
 public:
+    // The output is a percentage of the heater's power, so anything the PID asks for outside of
+    // this range is physically impossible to deliver.
+    static constexpr float OUTPUT_MIN = 0.0f;
+    static constexpr float OUTPUT_MAX = 100.0f;
+
     Controller(const Constants& constants, float initial_integral = 0.0f)
         : m_constants(constants)
         , m_integral(initial_integral) { }
@@ -23,9 +29,16 @@ public:
         float derivative = m_previous_error ? (error - *m_previous_error) / m_constants.Dt : 0.0f;
         m_integral += error * m_constants.Dt;
 
+        // Anti-windup: never let the integral term alone demand more than the output range can
+        // deliver, otherwise it keeps growing while saturated and causes a large overshoot when
+        // the error finally flips sign.
+        if (m_constants.Ki > 0.0f)
+            m_integral = std::clamp(m_integral, OUTPUT_MIN / m_constants.Ki, OUTPUT_MAX / m_constants.Ki);
+
         m_previous_error = error;
 
-        return m_constants.Kp * proportional + m_constants.Ki * m_integral + m_constants.Kd * derivative;
+        float output = m_constants.Kp * proportional + m_constants.Ki * m_integral + m_constants.Kd * derivative;
+        return std::clamp(output, OUTPUT_MIN, OUTPUT_MAX);
     }
 
     float integral() {

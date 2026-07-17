@@ -20,6 +20,14 @@ static auto PREHEATER_RELAY = etk::gpio::Output { GPIO_NUM_17 };
 
 static auto WATER_RELAY = etk::gpio::Output { GPIO_NUM_21 };
 
+// Safety limits. The NTC measures the FTH's body, not the water, so during normal operation it
+// runs well above the water temperature — this ceiling is meant to catch runaway heating, not to
+// regulate. Review on the bench before changing.
+static constexpr float MAX_ELEMENT_TEMPERATURE = 150.0f;
+// The sensor updates every ~7.8ms and the control loop wakes at least every AC phase cycle, so
+// this bounds how long we tolerate flying blind to roughly a couple hundred milliseconds.
+static constexpr int MAX_CONSECUTIVE_SENSOR_FAILURES = 8;
+
 static constexpr int percentage_to_watts(float percent) {
     return std::lround(percent / 100.0f * relays::MAX_WATTS);
 }
@@ -73,7 +81,15 @@ void Heater::run() {
 void Heater::handle_command(const HeaterControl& command) {
     switch (command.which_tag) {
     case HeaterControl_start_tag: {
-        float delta = command.start.target_temperature - m_temperature_sensor.read_temperature();
+        auto reading = m_temperature_sensor.read();
+        if (not reading.valid) {
+            raise_alarm(AlarmCode_SENSOR_FAILURE);
+            return;
+        }
+
+        m_consecutive_sensor_failures = 0;
+
+        float delta = command.start.target_temperature - reading.temperature;
 
         int preheat_duration = command.start.preheat_duration_multiplier ? std::max(std::lround(delta * command.start.preheat_duration_multiplier), 250l) : 0;
         float preheat_power = command.start.preheat_power_multiplier ? std::max(delta * command.start.preheat_power_multiplier, 30.0f) : 0.0f;
@@ -114,15 +130,32 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
     auto started_stage = std::exchange(stage.first_loop, false);
     auto start = started_stage ? stage.start : xf::time::now();
 
-    bool finished_stage = start >= stage.deadline;
-    bool is_preheating = std::holds_alternative<state::Heating::PreHeatingStage>(heating.stage);
-    bool finished_heating = finished_stage and not is_preheating;
+    auto reading = m_temperature_sensor.read();
+    m_consecutive_sensor_failures = reading.valid ? 0 : m_consecutive_sensor_failures + 1;
+    if (m_consecutive_sensor_failures >= MAX_CONSECUTIVE_SENSOR_FAILURES) {
+        raise_alarm(AlarmCode_SENSOR_FAILURE);
+        return;
+    }
 
-    auto temperature = [&, temperature = std::optional<float> {}] mutable {
-        if (!temperature)
-            temperature = m_temperature_sensor.read_temperature();
-        return *temperature;
-    };
+    if (reading.valid and reading.temperature >= MAX_ELEMENT_TEMPERATURE) {
+        raise_alarm(AlarmCode_OVER_TEMPERATURE);
+        return;
+    }
+
+    float temperature = reading.temperature;
+
+    bool is_preheating = std::holds_alternative<state::Heating::PreHeatingStage>(heating.stage);
+
+    // The preheat deadline is an upper bound: if the element body already reached the target
+    // there is nothing left to preheat, and staying dry any longer only overshoots and boils the
+    // first water that comes in.
+    bool preheat_done_early = is_preheating
+        and heating.parameters.target_temperature > 0
+        and reading.valid
+        and temperature >= heating.parameters.target_temperature;
+
+    bool finished_stage = start >= stage.deadline or preheat_done_early;
+    bool finished_heating = finished_stage and not is_preheating;
 
     if (stage.relays_controller.needs_new_control_data()) {
         auto control_info = wxs::match(
@@ -131,7 +164,7 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
                 return { stage.control_data, std::nullopt };
             },
             [&](state::Heating::HeatingStage& stage) -> state::Heating::ControlInfo {
-                float pid = stage.pid.calculate_output(heating.parameters.target_temperature - temperature());
+                float pid = stage.pid.calculate_output(heating.parameters.target_temperature - temperature);
                 int watts = percentage_to_watts(pid);
                 return { relays::find_best_control_data_for_watts(watts), pid };
             });
@@ -146,7 +179,7 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
         maestro::send_event({
             .which_tag = FirmwareEvent_heating_report_tag,
             .heating_report = {
-                .temperature = temperature(),
+                .temperature = temperature,
                 .pid = heating.active_control_info.pid.value_or(-1),
                 .power = watts_to_percentage(heating.active_control_info.control_data.average_watts),
                 .seconds_elapsed = seconds_elapsed,
@@ -160,7 +193,7 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
         wxs::match(
             heating.stage,
             [&](state::Heating::PreHeatingStage&) {
-                float initial_integral = this->initial_integral(temperature());
+                float initial_integral = this->initial_integral(temperature);
                 LOGI("Heater", "Reusing last heating info (integral={})", initial_integral);
 
                 heating.stage = state::Heating::HeatingStage {
@@ -185,7 +218,7 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
                 // HACK: Do proper non-heating pour functionality
                 if (heating.parameters.target_temperature)
                     m_last_heating_info = LastHeatingInfo {
-                        .ending_temperature = temperature(),
+                        .ending_temperature = temperature,
                         .ending_integral = stage.pid.integral(),
                     };
 
@@ -213,6 +246,23 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
 
     if (auto command = m_command_queue.receive(std::min({ time_until_deadline, time_until_next_phase_cycle, time_until_next_report })))
         handle_command(*command);
+}
+
+void Heater::raise_alarm(AlarmCode code) {
+    LOGE("Heater", "Alarm raised (code={}), shutting the heater down", static_cast<int>(code));
+
+    m_state = state::Idling {};
+
+    // Flushing water through the element while it powers down is what cools it — especially
+    // important on an over-temperature trip.
+    disable_relays(DelayWaterRelayDisable::Yes);
+
+    maestro::send_event({
+        .which_tag = FirmwareEvent_alarm_tag,
+        .alarm = {
+            .code = code,
+        },
+    });
 }
 
 void Heater::disable_relays(Heater::DelayWaterRelayDisable delay_water_relay) {

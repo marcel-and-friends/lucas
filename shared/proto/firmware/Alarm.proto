@@ -1,5 +1,11 @@
 syntax = "proto3";
 
+enum AlarmCode {
+  UNKNOWN = 0;
+  SENSOR_FAILURE = 1;
+  OVER_TEMPERATURE = 2;
+}
+
 message Alarm {
-  int32 error_code = 1;
+  AlarmCode code = 1;
 }
