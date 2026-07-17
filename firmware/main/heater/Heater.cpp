@@ -40,6 +40,12 @@ static constexpr float PREHEAT_SOAK_THRESHOLD = 10.0f;
 static constexpr float PREHEAT_SOAK_POWER_PERCENT = 30.0f;
 static constexpr float PREHEAT_EXIT_MARGIN = 4.0f;
 
+// After the relays cut, the film keeps dumping its stored heat into the body for about a second
+// (bench: the body peaked 0.9s AFTER the preheat ended). Water arriving during that window
+// boils against the film even when the body reading looks fine — the sip steamed with the
+// outlet at 83C. Hold the water until the film has settled.
+static constexpr auto PREHEAT_SETTLE_TIME = 1200ms;
+
 static constexpr int percentage_to_watts(float percent) {
     return std::lround(percent / 100.0f * relays::MAX_WATTS);
 }
@@ -230,10 +236,20 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
                 float initial_integral = this->initial_integral(temperature);
                 LOGI("Heater", "Reusing last heating info (integral={})", initial_integral);
 
+                // Let the film settle dry before any water arrives — the body peak from the
+                // stored heat must happen without water present to boil against it. Skipped for
+                // non-heating pours, which have no preheat to settle from.
+                if (heating.parameters.target_temperature > 0) {
+                    for (auto& relay : HEATER_RELAYS)
+                        relay.disable();
+                    delay(PREHEAT_SETTLE_TIME);
+                }
+
+                auto heating_start = xf::time::now();
                 heating.stage = state::Heating::HeatingStage {
                     {
-                        .start = start,
-                        .deadline = start + xf::time::Duration { heating.parameters.duration_ms },
+                        .start = heating_start,
+                        .deadline = heating_start + xf::time::Duration { heating.parameters.duration_ms },
                     },
                     pid::Controller(
                         pid::Constants {
