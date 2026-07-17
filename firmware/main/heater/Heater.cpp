@@ -43,10 +43,11 @@ static constexpr float PREHEAT_SOAK_POWER_PERCENT = 30.0f;
 static constexpr float PREHEAT_EXIT_MARGIN = 4.0f;
 
 // A DRY channel sizzles when first wetted at high temperature no matter how settled the film is
-// (bench: opened at 97C settled and powered-down — still steamed; opening below ~60C never
-// did). A wetted wall, on the other hand, held 94C at full power without a hiss. So the dry
-// stage never goes beyond this ceiling — the rest of the climb happens under flow.
-static constexpr float PREHEAT_MAX_DRY_TEMPERATURE = 80.0f;
+// (bench dose-response: opened at 96 -> sizzled, 91 -> sizzled faintly, <=58 -> silent), while a
+// wetted wall held 94C at full power without a hiss. The film also hides ~15-19C from the NTC
+// even at low preheat power, so this ceiling is set well below the wet-safe boundary — the body
+// lands in the low 80s when the water opens, and the rest of the climb happens under flow.
+static constexpr float PREHEAT_MAX_DRY_TEMPERATURE = 65.0f;
 
 // After the relays cut, the film keeps dumping its stored heat into the body for about a second
 // (bench: the body peaked 0.9s AFTER the preheat ended). Water arriving during that window
