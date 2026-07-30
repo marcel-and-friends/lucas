@@ -49,6 +49,11 @@ static constexpr float PREHEAT_EXIT_MARGIN = 4.0f;
 // lands in the low 80s when the water opens, and the rest of the climb happens under flow.
 static constexpr float PREHEAT_MAX_DRY_TEMPERATURE = 65.0f;
 
+// Standby parks the element at the dry-safe ceiling so a pour needs no preheat. Only the weak
+// element cycles (small film gradient — the whole point is staying inside the silent zone).
+static constexpr float STANDBY_TEMPERATURE = PREHEAT_MAX_DRY_TEMPERATURE;
+static constexpr float STANDBY_HYSTERESIS = 1.5f;
+
 // After the relays cut, the film keeps dumping its stored heat into the body for about a second
 // (bench: the body peaked 0.9s AFTER the preheat ended). Water arriving during that window
 // boils against the film even when the body reading looks fine — the sip steamed with the
@@ -96,6 +101,9 @@ void Heater::run() {
             [&](state::Idling) {
                 auto command = m_command_queue.await_receive();
                 handle_command(command);
+            },
+            [&](state::Standby& standby) {
+                run_standby(standby);
             },
             [&](state::Heating& heating) {
                 wxs::visit(heating.stage, [&](state::Heating::Stage& stage) {
@@ -152,6 +160,14 @@ void Heater::handle_command(const HeaterControl& command) {
         disable_relays(DelayWaterRelayDisable::Yes);
 
         LOGI("Heater", "Heating stopped");
+        break;
+    case HeaterControl_standby_tag:
+        // Entering from a pour shuts everything down first; the standby loop then takes over.
+        disable_relays(DelayWaterRelayDisable::Yes);
+
+        m_state = state::Standby {};
+
+        LOGI("Heater", "Standby engaged");
         break;
     };
 }
@@ -309,6 +325,53 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
 
     if (auto command = m_command_queue.receive(std::min({ time_until_deadline, time_until_next_phase_cycle, time_until_next_report })))
         handle_command(*command);
+}
+
+void Heater::run_standby(state::Standby& standby) {
+    auto reading = m_temperature_sensor.read();
+    m_consecutive_sensor_failures = reading.valid ? 0 : m_consecutive_sensor_failures + 1;
+    if (m_consecutive_sensor_failures >= MAX_CONSECUTIVE_SENSOR_FAILURES) {
+        raise_alarm(AlarmCode_SENSOR_FAILURE);
+        return;
+    }
+
+    if (reading.valid and reading.temperature >= MAX_ELEMENT_TEMPERATURE) {
+        raise_alarm(AlarmCode_OVER_TEMPERATURE);
+        return;
+    }
+
+    if (reading.valid) {
+        if (standby.element_on) {
+            if (reading.temperature >= STANDBY_TEMPERATURE)
+                standby.element_on = false;
+        } else {
+            if (reading.temperature < STANDBY_TEMPERATURE - STANDBY_HYSTERESIS)
+                standby.element_on = true;
+        }
+    } else {
+        // Flying blind (briefly, before the failure counter trips) — keep the element off.
+        standby.element_on = false;
+    }
+
+    HEATER_RELAYS[0].set(standby.element_on);
+
+    if (check_interval(standby.last_report, xf::time::Duration { 2000 }, xf::time::now())) {
+        maestro::send_event({
+            .which_tag = FirmwareEvent_heating_report_tag,
+            .heating_report = {
+                .temperature = reading.temperature,
+                .pid = -1,
+                .power = standby.element_on ? watts_to_percentage(relays::WEAK_RELAY_WATTS) : 0.0f,
+                .seconds_elapsed = 0,
+                .stage = HeatingStage_Standby,
+            },
+        });
+    }
+
+    if (auto command = m_command_queue.receive(250ms)) {
+        HEATER_RELAYS[0].disable();
+        handle_command(*command);
+    }
 }
 
 void Heater::raise_alarm(AlarmCode code) {

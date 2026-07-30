@@ -24,6 +24,10 @@ export default function Heater() {
 
   const [graphData, setGraphData] = useState<GraphPoint[]>([]);
   const [isHeating, setIsHeating] = useState(false);
+  const [isStandby, setIsStandby] = useState(false);
+  const [standbyTemperature, setStandbyTemperature] = useState<number | null>(
+    null,
+  );
   const [alarm, setAlarm] = useState<string | null>(null);
   const [targetTemperature, setTargetTemperature] = useState<
     number | undefined
@@ -31,10 +35,16 @@ export default function Heater() {
 
   useFirmwareEvent("alarm", (event) => {
     setIsHeating(false);
+    setIsStandby(false);
+    setStandbyTemperature(null);
     setAlarm(ALARM_MESSAGES[event.code] ?? `Alarme desconhecido (${event.code})`);
   });
 
   useFirmwareEvent("heating_report", (event) => {
+    if (event.stage === HeatingStage.Standby) {
+      setStandbyTemperature(event.temperature);
+      return;
+    }
     if (event.stage === HeatingStage.Finished) setIsHeating(false);
     setGraphData((temperatures) => [
       ...temperatures,
@@ -55,10 +65,24 @@ export default function Heater() {
     ]);
   });
 
+  const toggleStandby = async () => {
+    if (!isStandby) {
+      setIsStandby(true);
+      setAlarm(null);
+      await bridge.sendCommand({ heater_control: { standby: {} } });
+    } else {
+      setIsStandby(false);
+      setStandbyTemperature(null);
+      await bridge.sendCommand({ heater_control: { stop: {} } });
+    }
+  };
+
   const onSubmit = async (params: HeatingParameters) => {
     if (!isHeating) {
       setGraphData([]);
       setIsHeating(true);
+      setIsStandby(false);
+      setStandbyTemperature(null);
       setAlarm(null);
       setTargetTemperature(params.targetTemperature);
 
@@ -129,6 +153,11 @@ export default function Heater() {
             }}
           >
             Despejar agua fria
+          </Button>
+          <Button disabled={isHeating} onClick={toggleStandby}>
+            {isStandby
+              ? `Desligar standby${standbyTemperature != null ? ` (${standbyTemperature.toFixed(1)}°C)` : ""}`
+              : "Standby (manter a 65°C)"}
           </Button>
         </div>
       </div>

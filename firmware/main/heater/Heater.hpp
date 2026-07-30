@@ -16,6 +16,12 @@ namespace state {
 
 struct Idling { };
 
+// Holds the element at the dry-safe ceiling between pours so the preheat all but disappears.
+struct Standby {
+    xf::time::Tick last_report {};
+    bool element_on { false };
+};
+
 struct Heating {
     struct Stage {
         xf::time::Tick start;
@@ -54,7 +60,7 @@ struct Heating {
     xf::time::Tick last_report {};
 };
 
-using State = std::variant<state::Idling, state::Heating>;
+using State = std::variant<state::Idling, state::Standby, state::Heating>;
 
 }
 
@@ -70,6 +76,8 @@ private:
     void handle_command(const HeaterControl&);
 
     void control_heater(state::Heating&, state::Heating::Stage&);
+
+    void run_standby(state::Standby&);
 
     enum class DelayWaterRelayDisable : uint8_t {
         Yes,

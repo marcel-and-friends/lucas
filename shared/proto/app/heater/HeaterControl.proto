@@ -15,8 +15,11 @@ message HeaterControl {
 
   message Stop {}
 
+  message Standby {}
+
   oneof tag {
     Start start = 1;
     Stop stop = 2;
+    Standby standby = 3;
   }
 }

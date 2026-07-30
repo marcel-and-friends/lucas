@@ -4,6 +4,7 @@ enum HeatingStage {
   PreHeating = 0;
   Heating = 1;
   Finished = 2;
+  Standby = 3;
 }
 
 message HeatingReport {
