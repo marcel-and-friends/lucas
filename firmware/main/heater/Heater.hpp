@@ -44,6 +44,13 @@ struct Heating {
 
     struct HeatingStage : Stage {
         pid::Controller pid;
+
+        // Lightly low-passed reading fed to the PID so it stops chasing flow-wave noise; raw
+        // readings still drive the safety checks and reports.
+        float filtered_temperature { -1.0f };
+
+        // Last commanded wattage, for slew limiting.
+        int previous_watts { -1 };
     };
 
     std::variant<PreHeatingStage, HeatingStage> stage;

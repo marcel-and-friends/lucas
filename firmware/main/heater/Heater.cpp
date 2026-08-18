@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 
 #include <etk/gpio/Pin.hpp>
@@ -48,6 +49,13 @@ static constexpr float PREHEAT_EXIT_MARGIN = 4.0f;
 // even at low preheat power, so this ceiling is set well below the wet-safe boundary — the body
 // lands in the low 80s when the water opens, and the rest of the climb happens under flow.
 static constexpr float PREHEAT_MAX_DRY_TEMPERATURE = 65.0f;
+
+// The controller's hand must be smooth: power steps hammer the film, and every hammer risks a
+// micro-boil that kicks the flow (bench 18/08: 27->100% jumps every PID tick with the jet
+// hiccuping in sync). Power may only ramp, a few percent per PID tick, and the PID reads a
+// lightly filtered temperature so it stops chasing the flow-wave noise.
+static constexpr int MAX_WATTS_STEP_PER_TICK = relays::MAX_WATTS * 8 / 100;
+static constexpr float TEMPERATURE_FILTER_ALPHA = 0.35f;
 
 // Standby parks the element at the dry-safe ceiling so a pour needs no preheat. Only the weak
 // element cycles (small film gradient — the whole point is staying inside the silent zone).
@@ -233,8 +241,22 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
                 return { stage.control_data, std::nullopt };
             },
             [&](state::Heating::HeatingStage& stage) -> state::Heating::ControlInfo {
-                float pid = stage.pid.calculate_output(heating.parameters.target_temperature - temperature);
+                if (reading.valid) {
+                    if (stage.filtered_temperature < 0.0f)
+                        stage.filtered_temperature = temperature;
+                    stage.filtered_temperature += TEMPERATURE_FILTER_ALPHA * (temperature - stage.filtered_temperature);
+                }
+
+                float control_temperature = stage.filtered_temperature >= 0.0f ? stage.filtered_temperature : temperature;
+                float pid = stage.pid.calculate_output(heating.parameters.target_temperature - control_temperature);
                 int watts = percentage_to_watts(pid);
+
+                if (stage.previous_watts >= 0)
+                    watts = std::clamp(watts,
+                        stage.previous_watts - MAX_WATTS_STEP_PER_TICK,
+                        stage.previous_watts + MAX_WATTS_STEP_PER_TICK);
+                stage.previous_watts = watts;
+
                 return { relays::find_best_control_data_for_watts(watts), pid };
             });
 
