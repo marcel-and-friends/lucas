@@ -57,14 +57,6 @@ static constexpr float PREHEAT_MAX_DRY_TEMPERATURE = 65.0f;
 static constexpr int MAX_WATTS_STEP_PER_TICK = relays::MAX_WATTS * 5 / 100;
 static constexpr float TEMPERATURE_FILTER_ALPHA = 0.35f;
 
-// Overshoot guard for the start of the pour (bench-specified 19/08): only inside the initial
-// window, and only while the temperature is actually ABOVE the target, chop power in short
-// bursts — at most ~500ms per cut, with the PID back in charge between cuts. A permanent or
-// anticipated cut starved the flow and dipped the temperature before the target was reached.
-static constexpr auto OVERSHOOT_GUARD_WINDOW = xf::time::Duration { 10000 };
-static constexpr uint8_t GUARD_CUT_TICKS = 2;      // ~340ms at the PID cadence
-static constexpr uint8_t GUARD_COOLDOWN_TICKS = 2; // PID resumes for ~340ms between cuts
-
 // Standby parks the element at the dry-safe ceiling so a pour needs no preheat. Only the weak
 // element cycles (small film gradient — the whole point is staying inside the silent zone).
 static constexpr float STANDBY_TEMPERATURE = PREHEAT_MAX_DRY_TEMPERATURE;
@@ -253,10 +245,6 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
                     if (stage.filtered_temperature < 0.0f)
                         stage.filtered_temperature = temperature;
                     stage.filtered_temperature += TEMPERATURE_FILTER_ALPHA * (temperature - stage.filtered_temperature);
-
-                    if (stage.previous_temperature >= 0.0f)
-                        stage.slope_per_second = (stage.filtered_temperature - stage.previous_temperature) / relays::PID_DELTA_TIME.count();
-                    stage.previous_temperature = stage.filtered_temperature;
                 }
 
                 float control_temperature = stage.filtered_temperature >= 0.0f ? stage.filtered_temperature : temperature;
@@ -268,22 +256,6 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
                 // +5C overshoot on approach (bench 19/08).
                 if (stage.previous_watts >= 0 and watts > stage.previous_watts)
                     watts = std::min(watts, stage.previous_watts + MAX_WATTS_STEP_PER_TICK);
-
-                bool in_guard_window = start - stage.start <= OVERSHOOT_GUARD_WINDOW;
-                if (stage.guard_cooldown_ticks > 0) {
-                    --stage.guard_cooldown_ticks;
-                } else if (stage.guard_cut_ticks == 0
-                    and in_guard_window
-                    and control_temperature > heating.parameters.target_temperature) {
-                    stage.guard_cut_ticks = GUARD_CUT_TICKS;
-                }
-
-                if (stage.guard_cut_ticks > 0) {
-                    watts = 0;
-                    if (--stage.guard_cut_ticks == 0)
-                        stage.guard_cooldown_ticks = GUARD_COOLDOWN_TICKS;
-                }
-
                 stage.previous_watts = watts;
 
                 return { relays::find_best_control_data_for_watts(watts), pid };
