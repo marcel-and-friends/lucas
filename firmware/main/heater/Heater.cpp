@@ -251,10 +251,11 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
                 float pid = stage.pid.calculate_output(heating.parameters.target_temperature - control_temperature);
                 int watts = percentage_to_watts(pid);
 
-                if (stage.previous_watts >= 0)
-                    watts = std::clamp(watts,
-                        stage.previous_watts - MAX_WATTS_STEP_PER_TICK,
-                        stage.previous_watts + MAX_WATTS_STEP_PER_TICK);
+                // Asymmetric slew: ramp up gently (power hammering kicks the flow wave), but cut
+                // instantly — a symmetric ramp held 100% for ~2.5s past the target and caused a
+                // +5C overshoot on approach (bench 19/08).
+                if (stage.previous_watts >= 0 and watts > stage.previous_watts)
+                    watts = std::min(watts, stage.previous_watts + MAX_WATTS_STEP_PER_TICK);
                 stage.previous_watts = watts;
 
                 return { relays::find_best_control_data_for_watts(watts), pid };
