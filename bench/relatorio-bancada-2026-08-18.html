@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LUCAS FTH-XL — Diagnóstico de bancada</title>
+<style>
+  :root { --ink: #1d1d1f; --muted: #6e6e73; --line: #e3e3e6; --accent: #0a5ad4; --bad: #b42318; --good: #067647; --warn: #92400e; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: #fafafa; margin: 0; padding: 32px 20px 60px; line-height: 1.55; }
+  main { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin-bottom: 28px; }
+  h2 { font-size: 19px; margin: 36px 0 10px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; background: #fff; }
+  th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; }
+  th { background: #f2f2f4; font-weight: 600; }
+  .ok { color: var(--good); font-weight: 600; }
+  .bad { color: var(--bad); font-weight: 600; }
+  .warn { color: var(--warn); font-weight: 600; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; margin: 14px 0; }
+  .big { font-size: 17px; }
+  .flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13.5px; margin: 10px 0; }
+  .box { border: 1.5px solid var(--line); border-radius: 8px; padding: 6px 10px; background: #fff; }
+  .box.blue { border-color: var(--accent); color: var(--accent); }
+  .box.red { border-color: var(--bad); color: var(--bad); }
+  .box.green { border-color: var(--good); color: var(--good); }
+  .arrow { color: var(--muted); }
+  .foot { color: var(--muted); font-size: 12.5px; margin-top: 40px; }
+  code { background: #f0f0f2; border-radius: 4px; padding: 1px 5px; font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>LUCAS · Aquecedor FTH-XL — diagnóstico de bancada</h1>
+  <div class="sub">Sessões de 17/07 e 18/08/2026 · ~25 testes instrumentados · telemetria BLE 4 Hz · vazão atual 4,9 g/s</div>
+
+  <div class="card big">
+    <strong>Resumo executivo:</strong> o controle (firmware, PID, sensores, app) está validado e não é o gargalo.
+    A água "fritar" e o jato pulsar são <strong>dois fenômenos hidráulicos</strong> do canal aquecido operando
+    <strong>sem pressão</strong>: ebulição na parede (acima de ~86 °C) e oscilação de onda de densidade (qualquer alvo médio).
+    O fabricante especifica o FTH-XL para operar <strong>pressurizado (1–3 bar)</strong> — como fazem a Poursteady PS2 e a Tone Touch 3,
+    que usam o mesmo aquecedor com linha d'água. A correção é de arquitetura hidráulica, já especificada abaixo.
+  </div>
+
+  <h2>1 · O que está provado (evidências)</h2>
+  <table>
+    <tr><th>Evidência</th><th>Medição</th><th>Leitura</th></tr>
+    <tr><td>Despejo frio</td><td>74,2 g / 15 s, jato contínuo</td><td class="ok">Hidráulica fria saudável</td></tr>
+    <tr><td>Quente 86 °C</td><td>68–77 g, jato pulsando, chiado no início</td><td class="bad">Ebulição intermitente na parede</td></tr>
+    <tr><td>Quente 80 °C (3 tunings de PID)</td><td>Temp ±5–9 °C, período 2–5 s, potência em antifase</td><td class="bad">Onda de densidade — não é o controle</td></tr>
+    <tr><td>Ganho do PID reduzido pela metade</td><td>Oscilação DOBRA de amplitude</td><td class="warn">Distúrbio externo ao controle</td></tr>
+    <tr><td>Frio vs quente</td><td>Frio quase não pulsa; quente pulsa forte</td><td class="warn">Instabilidade nasce do aquecimento</td></tr>
+    <tr><td>Bico de pato pós-aquecedor</td><td>Sem melhora (~0,1 bar é pouco)</td><td class="warn">Pressão insuficiente</td></tr>
+    <tr><td>Datasheet Ferro Techniek FTH-XL LP</td><td>Teste de vida do fabricante: despejo a 1–3 bar; máx 5 bar</td><td class="ok">Operação pressurizada é o regime de projeto</td></tr>
+  </table>
+
+  <h2>2 · Por que acontece</h2>
+  <div class="card">
+    <p><strong>Hoje (instável):</strong></p>
+    <div class="flow">
+      <span class="box">Alimentação ~0 bar</span><span class="arrow">→</span>
+      <span class="box">Solenoide</span><span class="arrow">→</span>
+      <span class="box red">Restrição ANTES</span><span class="arrow">→</span>
+      <span class="box red">FTH-XL à pressão atmosférica</span><span class="arrow">→</span>
+      <span class="box">Bico largo</span>
+    </div>
+    <p>Canal aquecido à pressão atmosférica: a parede cruza 100 °C e ferve (fritura), e a expansão térmica contra a restrição
+    a montante cria a oscilação auto-sustentada de vazão (jato pulsando) — instabilidade clássica de canais aquecidos.</p>
+    <p><strong>Alvo (arquitetura PS2 / Tone / datasheet):</strong></p>
+    <div class="flow">
+      <span class="box blue">Linha d'água 2–3 bar</span><span class="arrow">→</span>
+      <span class="box blue">Regulador</span><span class="arrow">→</span>
+      <span class="box">Solenoide</span><span class="arrow">→</span>
+      <span class="box blue">FTH-XL pressurizado (1–3 bar)</span><span class="arrow">→</span>
+      <span class="box green">Bico-orifício (define 5–8 g/s)</span>
+    </div>
+    <p>Com pressão, a água só ferveria a 120–135 °C (sem ebulição na parede) e a restrição dominante a jusante
+    elimina a onda de densidade. A PS2 entrega 8 g/s a 94 °C com o mesmo aquecedor exatamente assim — sem bomba, só a linha.</p>
+  </div>
+
+  <h2>3 · O que já funciona (validado em bancada)</h2>
+  <table>
+    <tr><td>PID com anti-windup</td><td class="ok">92 °C ± 0,7 °C em regime saturado; zero overshoot em rampas</td></tr>
+    <tr><td>Preheat inteligente</td><td class="ok">Por temperatura projetada (não por tempo), com teto seguro e assentamento</td></tr>
+    <tr><td>Segurança</td><td class="ok">Corte por sensor defeituoso, teto de 150 °C, alarmes no app via BLE</td></tr>
+    <tr><td>Modo standby</td><td class="ok">Elemento mantido a 65 °C entre cafés — pour começa em segundos</td></tr>
+    <tr><td>Telemetria</td><td class="ok">Curvas de temperatura/PID/potência a 4 Hz no app, log em CSV</td></tr>
+  </table>
+
+  <h2>4 · Especificação do retrabalho hidráulico</h2>
+  <div class="card">
+    <ol>
+      <li><strong>Entrada:</strong> engate rápido 1/4" na linha d'água + <strong>regulador de pressão 2–3 bar</strong> (repetibilidade).</li>
+      <li><strong>Remover</strong> qualquer restrição antes do aquecedor.</li>
+      <li><strong>Saída:</strong> bico-orifício fino (~1 mm, ajustar pela vazão) — define os 5–8 g/s, pressuriza o canal e forma o fio de água.</li>
+      <li>Solenoide permanece onde está. Vazão fixa (decisão: estilo PS2; válvula proporcional fica para v2).</li>
+      <li>Critério de aceite: <strong>despejo frio e a 92 °C com a mesma massa (±10%) e o mesmo jato contínuo</strong>.</li>
+    </ol>
+    <p>Dado disponível: resistência hidráulica do canal &lt; 700 mbar @ 16 ml/s (datasheet §5.2) — nos nossos 5 g/s a queda no canal é ~0,1–0,2 bar; o resto da pressão fica disponível até o orifício.</p>
+    <p>Upgrade opcional descoberto no datasheet: o FTH-XL tem sensor de superaquecimento <strong>E-Fast®</strong> impresso no elemento
+    (2 contatos do conector, hoje sem uso). Ligá-lo ao ADC dá proteção dry-fire instantânea exigida pelo fabricante — já previsto no firmware.</p>
+  </div>
+
+  <div class="foot">Firmware: branch <code>heater-safety</code> em <code>marcel-and-friends/lucas</code> · Referências: datasheet FTH-XL LP (Ferro Techniek, rev. 02), manual PS2, materiais Tone Touch 3 · Gerado em 18/08/2026</div>
+</main>
+</body>
+</html>
