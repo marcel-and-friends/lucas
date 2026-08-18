@@ -164,6 +164,7 @@ void Heater::handle_command(const HeaterControl& command) {
     } break;
     case HeaterControl_stop_tag:
         m_state = state::Idling {};
+        m_return_to_standby = false;
 
         disable_relays(DelayWaterRelayDisable::Yes);
 
@@ -174,6 +175,7 @@ void Heater::handle_command(const HeaterControl& command) {
         disable_relays(DelayWaterRelayDisable::Yes);
 
         m_state = state::Standby {};
+        m_return_to_standby = true;
 
         LOGI("Heater", "Standby engaged");
         break;
@@ -326,7 +328,11 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
 
                 LOGI("Heater", "Saving heating info (integral={})", stage.pid.integral());
 
-                m_state = state::Idling {};
+                // A machine that was on standby goes back to it after the pour — always ready.
+                if (m_return_to_standby)
+                    m_state = state::Standby {};
+                else
+                    m_state = state::Idling {};
 
                 disable_relays(heating.parameters.target_temperature ? DelayWaterRelayDisable::Yes : DelayWaterRelayDisable::No);
             });
@@ -401,6 +407,8 @@ void Heater::raise_alarm(AlarmCode code) {
     LOGE("Heater", "Alarm raised (code={}), shutting the heater down", static_cast<int>(code));
 
     m_state = state::Idling {};
+    // Never resume heating on our own after a safety trip.
+    m_return_to_standby = false;
 
     // Flushing water through the element while it powers down is what cools it — especially
     // important on an over-temperature trip.

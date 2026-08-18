@@ -100,6 +100,9 @@ private:
 
     state::State m_state;
 
+    // When standby was engaged, pours return to it instead of idling — always ready.
+    bool m_return_to_standby { false };
+
     TemperatureSensor m_temperature_sensor;
 
     int m_consecutive_sensor_failures { 0 };
