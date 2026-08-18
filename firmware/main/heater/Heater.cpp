@@ -57,6 +57,12 @@ static constexpr float PREHEAT_MAX_DRY_TEMPERATURE = 65.0f;
 static constexpr int MAX_WATTS_STEP_PER_TICK = relays::MAX_WATTS * 5 / 100;
 static constexpr float TEMPERATURE_FILTER_ALPHA = 0.35f;
 
+// Predictive cut on the wet climb: an ascending curve means more temperature is coming, so
+// waiting for the reading to cross the target guarantees an overshoot. When the projected
+// temperature (filtered reading + slope * lookahead) crosses the target, power goes to zero on
+// the spot — the asymmetric slew makes the cut instantaneous.
+static constexpr float WET_LOOKAHEAD_SECONDS = 1.0f;
+
 // Standby parks the element at the dry-safe ceiling so a pour needs no preheat. Only the weak
 // element cycles (small film gradient — the whole point is staying inside the silent zone).
 static constexpr float STANDBY_TEMPERATURE = PREHEAT_MAX_DRY_TEMPERATURE;
@@ -245,6 +251,10 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
                     if (stage.filtered_temperature < 0.0f)
                         stage.filtered_temperature = temperature;
                     stage.filtered_temperature += TEMPERATURE_FILTER_ALPHA * (temperature - stage.filtered_temperature);
+
+                    if (stage.previous_temperature >= 0.0f)
+                        stage.slope_per_second = (stage.filtered_temperature - stage.previous_temperature) / relays::PID_DELTA_TIME.count();
+                    stage.previous_temperature = stage.filtered_temperature;
                 }
 
                 float control_temperature = stage.filtered_temperature >= 0.0f ? stage.filtered_temperature : temperature;
@@ -256,6 +266,11 @@ void Heater::control_heater(state::Heating& heating, state::Heating::Stage& stag
                 // +5C overshoot on approach (bench 19/08).
                 if (stage.previous_watts >= 0 and watts > stage.previous_watts)
                     watts = std::min(watts, stage.previous_watts + MAX_WATTS_STEP_PER_TICK);
+
+                float projected = control_temperature + stage.slope_per_second * WET_LOOKAHEAD_SECONDS;
+                if (projected >= heating.parameters.target_temperature)
+                    watts = 0;
+
                 stage.previous_watts = watts;
 
                 return { relays::find_best_control_data_for_watts(watts), pid };
