@@ -54,7 +54,7 @@ static constexpr float PREHEAT_MAX_DRY_TEMPERATURE = 65.0f;
 // micro-boil that kicks the flow (bench 18/08: 27->100% jumps every PID tick with the jet
 // hiccuping in sync). Power may only ramp, a few percent per PID tick, and the PID reads a
 // lightly filtered temperature so it stops chasing the flow-wave noise.
-static constexpr int MAX_WATTS_STEP_PER_TICK = relays::MAX_WATTS * 8 / 100;
+static constexpr int MAX_WATTS_STEP_PER_TICK = relays::MAX_WATTS * 5 / 100;
 static constexpr float TEMPERATURE_FILTER_ALPHA = 0.35f;
 
 // Standby parks the element at the dry-safe ceiling so a pour needs no preheat. Only the weak
