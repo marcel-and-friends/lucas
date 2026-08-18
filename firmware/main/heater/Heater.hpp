@@ -50,6 +50,10 @@ struct Heating {
 
         // Last commanded wattage, for slew limiting.
         int previous_watts { -1 };
+
+        // Overshoot guard bookkeeping (short cuts with cooldown, start-of-pour only).
+        uint8_t guard_cut_ticks { 0 };
+        uint8_t guard_cooldown_ticks { 0 };
     };
 
     std::variant<PreHeatingStage, HeatingStage> stage;
