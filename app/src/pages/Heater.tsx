@@ -78,6 +78,18 @@ export default function Heater() {
   };
 
   const onSubmit = async (params: HeatingParameters) => {
+    const start = {
+      target_temperature: params.targetTemperature,
+      duration_ms: Math.round(params.duration * 1000),
+
+      preheat_duration_multiplier: params.preheatDurationMultiplier,
+      preheat_power_multiplier: params.preheatPowerMultiplier,
+
+      p: params.p,
+      i: params.i,
+      d: params.d,
+    };
+
     if (!isHeating) {
       setGraphData([]);
       setIsHeating(true);
@@ -85,30 +97,18 @@ export default function Heater() {
       setStandbyTemperature(null);
       setAlarm(null);
       setTargetTemperature(params.targetTemperature);
-
-      await bridge.sendCommand({
-        heater_control: {
-          start: {
-            target_temperature: params.targetTemperature,
-            duration_ms: Math.round(params.duration * 1000),
-
-            preheat_duration_multiplier: params.preheatDurationMultiplier,
-            preheat_power_multiplier: params.preheatPowerMultiplier,
-
-            p: params.p,
-            i: params.i,
-            d: params.d,
-          },
-        },
-      });
     } else {
-      setIsHeating(false);
-      await bridge.sendCommand({
-        heater_control: {
-          stop: {},
-        },
-      });
+      // Retarget em voo: a água continua correndo, só o alvo/prazo mudam — o gráfico segue
+      // acumulando a curva contínua.
+      setTargetTemperature(params.targetTemperature);
     }
+
+    await bridge.sendCommand({ heater_control: { start } });
+  };
+
+  const onStop = async () => {
+    setIsHeating(false);
+    await bridge.sendCommand({ heater_control: { stop: {} } });
   };
 
   return (
@@ -130,7 +130,12 @@ export default function Heater() {
               {alarm}
             </button>
           )}
-          <HeaterControlForm isHeating={isHeating} onSubmit={onSubmit} />
+          <HeaterControlForm isHeating={false} onSubmit={onSubmit} />
+          {isHeating && (
+            <Button type="button" onClick={onStop}>
+              Parar
+            </Button>
+          )}
           <Button
             disabled={isHeating}
             onClick={() => {
