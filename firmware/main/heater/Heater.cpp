@@ -124,6 +124,22 @@ void Heater::run() {
 void Heater::handle_command(const HeaterControl& command) {
     switch (command.which_tag) {
     case HeaterControl_start_tag: {
+        // Retarget on the fly: a Start while the water is already flowing just moves the target
+        // and extends the clock. Closing and reopening the water resets the thermal equilibrium
+        // and forces the ~18s transient to be paid again (bench 19/08) — so multi-attack recipes
+        // keep the water running and only the setpoint changes. The PID gains stay the ones from
+        // the original Start.
+        if (auto* heating = std::get_if<state::Heating>(&m_state)) {
+            if (auto* stage = std::get_if<state::Heating::HeatingStage>(&heating->stage)) {
+                if (command.start.target_temperature > 0 and heating->parameters.target_temperature > 0) {
+                    heating->parameters = command.start;
+                    stage->deadline = xf::time::now() + xf::time::Duration { command.start.duration_ms };
+                    LOGI("Heater", "Retargeted on the fly (target={}, +{}ms)", command.start.target_temperature, command.start.duration_ms);
+                    return;
+                }
+            }
+        }
+
         // The first conversion after a long idle can be stale (bench: 52C on a 26C element) and
         // the whole preheat is sized off this one number — discard it and wait for a fresh one.
         m_temperature_sensor.read();
